@@ -1,0 +1,1239 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 14px;
+  --background: #ffffff;
+  --foreground: oklch(0.145 0 0);
+  --card: #ffffff;
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: #030213;
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.95 0.0058 264.53);
+  --secondary-foreground: #030213;
+  --muted: #ececf0;
+  --muted-foreground: #717182;
+  --accent: #e9ebef;
+  --accent-foreground: #030213;
+  --destructive: #d4183d;
+  --destructive-foreground: #ffffff;
+  --border: rgba(0, 0, 0, 0.1);
+  --input: transparent;
+  --input-background: #f3f3f5;
+  --switch-background: #cbced4;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --radius: 0.625rem;
+  
+  /* Light mode specific colors */
+  --main-background: #f5f5f5;
+  --sidebar-background: #f7f9fa;
+  --card-background: #ffffff;
+  --section-background: rgba(247,249,250,0.5);
+  --text-primary: #404040;
+  --text-secondary: #9d9292;
+  --text-light: #adadad;
+  --accent-green: #1A6E31;
+  --accent-blue: #2e649d;
+  --accent-red: #b00020;
+  --border-light: #d0d5dd;
+  --border-medium: #e0e0e0;
+}
+
+.dark {
+  --background: #0d0f0f;
+  --foreground: oklch(0.985 0 0);
+  --card: rgba(34, 33, 38, 0.5);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --border: oklch(0.269 0 0);
+  --input: oklch(0.269 0 0);
+  --ring: oklch(0.439 0 0);
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  
+  /* Dark mode specific colors */
+  --main-background: #0d0f0f;
+  --sidebar-background: rgba(115, 115, 115, 0.4);
+  --card-background: rgba(34, 33, 38, 0.5); /* Cards oscuras en dark mode */
+  --section-background: rgba(34,33,38,0.3);
+  --text-primary: #ffffff;
+  --text-secondary: #adadad;
+  --text-light: #adadad;
+  --accent-green: #3ABE76;
+  --accent-blue: #3acfff;
+  --accent-red: #ff2e2e;
+  --border-light: #f2f2f2;
+  --border-medium: #9e9e9e; /* Bordes más claros en dark mode */
+  --border-dark: #9e9e9e;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/**
+ * Base typography
+ */
+@layer base {
+  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
+    h1 {
+      font-size: var(--text-2xl);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h2 {
+      font-size: var(--text-xl);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h3 {
+      font-size: var(--text-lg);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h4 {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    p {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.5;
+    }
+
+    label {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    button {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    input, select {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.5;
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+}
+
+/* Hide scrollbar for webkit browsers */
+.scrollbar-hide {
+  -webkit-overflow-scrolling: touch;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Dark mode specific animations */
+@keyframes dropdown-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-dropdown-appear {
+  animation: dropdown-appear 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Modal appear animation */
+@keyframes modal-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-modal-appear {
+  animation: modal-appear 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Notification pulse animation */
+@keyframes pulse-notification {
+  0%, 50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  25% {
+    opacity: 0.3;
+    transform: scale(0.95);
+  }
+  75% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-pulse-notification {
+  animation: pulse-notification 2s ease-in-out infinite;
+}
+
+/* Accordion animations */
+.accordion-content {
+  overflow: hidden;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.accordion-content[data-state="closed"] {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.accordion-content[data-state="open"] {
+  max-height: 1000px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Arrow rotation animation for collapse buttons */
+.accordion-arrow {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.accordion-arrow.rotated {
+  transform: rotate(180deg);
+}
+
+/* Collapse button with arrow transition - MEJORADO */
+.collapse-button {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.collapse-button:hover {
+  transform: scale(1.05);
+}
+
+.collapse-button:active {
+  transform: scale(0.98);
+}
+
+/* Arrow SVG transition within collapse button */
+.collapse-button svg {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Button hover effects */
+.accordion-button {
+  transition: all 0.2s ease-in-out;
+}
+
+.accordion-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.dark .accordion-button:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Section spacing improvements */
+.section-container {
+  margin-bottom: 2.625rem; /* 42px */
+}
+
+/* Enhanced carousel navigation styling */
+.carousel-nav-button {
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  z-index: 20;
+  position: relative;
+}
+
+.carousel-nav-button:hover:not(:disabled) {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px) scale(1.05);
+}
+
+.carousel-nav-button:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
+}
+
+.carousel-nav-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Financial card styling - ADAPTABLE AL DARK MODE según imagen de referencia */
+.financial-card {
+  transition: all 0.2s ease-in-out;
+  position: relative;
+  flex-shrink: 0;
+  padding: 12px;
+  min-width: 370px;
+  max-width: 370px;
+  width: 370px;
+  
+  /* Light mode - fondo blanco */
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 18.9259px;
+  box-shadow: 0px 4px 4px 0px rgba(0,0,0,0.04);
+}
+
+/* Dark mode - fondo oscuro según imagen de referencia */
+.dark .financial-card {
+  background: rgba(34, 33, 38, 0.5);
+  border: 1px solid #9e9e9e;
+  box-shadow: 0px 4px 4px 0px rgba(0,0,0,0.3);
+}
+
+/* Selector de años dentro de la card */
+.financial-card-select {
+  background: #ffffff;
+}
+
+.dark .financial-card-select {
+  background: rgba(50, 50, 50, 0.8);
+}
+
+.financial-card-select-border {
+  border-color: #d0d5dd;
+}
+
+.dark .financial-card-select-border {
+  border-color: #9e9e9e;
+}
+
+.financial-card-select-text {
+  color: #404040;
+}
+
+.dark .financial-card-select-text {
+  color: #ffffff;
+}
+
+/* Chevron del selector */
+.financial-card-chevron {
+  stroke: #404040;
+}
+
+.dark .financial-card-chevron {
+  stroke: #ffffff;
+}
+
+/* Gripper */
+.financial-card-gripper {
+  fill: #404040;
+}
+
+.dark .financial-card-gripper {
+  fill: #ffffff;
+}
+
+/* Bordes punteados */
+.financial-card-border-dashed {
+  border-color: #404040;
+}
+
+.dark .financial-card-border-dashed {
+  border-color: #9e9e9e;
+}
+
+/* Texto de fechas */
+.financial-card-date-text {
+  color: #404040;
+}
+
+.dark .financial-card-date-text {
+  color: #ffffff;
+}
+
+/* Backgrounds transparentes */
+.financial-card-transparent-bg {
+  background-color: rgba(232,232,232,0);
+}
+
+.dark .financial-card-transparent-bg {
+  background-color: rgba(232,232,232,0);
+}
+
+/* Border exterior */
+.financial-card-outer-border {
+  border-color: #e0e0e0;
+}
+
+.dark .financial-card-outer-border {
+  border-color: #9e9e9e;
+}
+
+/* Shadow */
+.financial-card-shadow {
+  box-shadow: 0px 4px 4px 0px rgba(0,0,0,0.04);
+}
+
+.dark .financial-card-shadow {
+  box-shadow: 0px 4px 4px 0px rgba(0,0,0,0.3);
+}
+
+.financial-card:hover {
+  transform: translateY(-2px);
+}
+
+.financial-card:hover .financial-card-shadow {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.dark .financial-card:hover .financial-card-shadow {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+}
+
+/* Responsive card sizing - mantener consistencia */
+@media (max-width: 639px) {
+  .financial-card {
+    min-width: 300px;
+    max-width: 300px;
+    width: 300px;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .financial-card {
+    min-width: 350px;
+    max-width: 350px;
+    width: 350px;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1535px) {
+  .financial-card {
+    min-width: 370px;
+    max-width: 370px;
+    width: 370px;
+  }
+}
+
+@media (min-width: 1536px) {
+  .financial-card {
+    min-width: 390px;
+    max-width: 390px;
+    width: 390px;
+  }
+}
+
+/* Global Year Selector Styling - NUEVO */
+.year-selector-dropdown {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.year-selector-option {
+  transition: all 0.2s ease-in-out;
+  position: relative;
+}
+
+.year-selector-option:hover {
+  transform: translateX(4px);
+}
+
+.year-selector-option.selected {
+  position: relative;
+}
+
+.year-selector-option.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: var(--accent-green);
+  border-radius: 2px;
+}
+
+.dark .year-selector-option.selected::before {
+  background: var(--accent-green);
+}
+
+/* Badge styling for year ranges */
+.year-range-badge {
+  transition: all 0.2s ease-in-out;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.year-range-badge:hover {
+  transform: scale(1.05);
+}
+
+/* Year chips in dropdown */
+.year-chip {
+  transition: all 0.15s ease-in-out;
+}
+
+.year-chip:hover {
+  transform: scale(1.1);
+}
+
+/* NUEVO: Sidebar Container - Sin cortes MEJORADO */
+.sidebar-container {
+  position: relative;
+  overflow: visible !important;
+  z-index: 40;
+}
+
+.sidebar-container > div {
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow: visible !important;
+}
+
+.sidebar-container > div > div {
+  overflow: visible !important;
+}
+
+/* NUEVO: Botón de colapsar sobrepuesto del sidebar - COMPLETAMENTE VISIBLE */
+.sidebar-collapse-button {
+  position: absolute;
+  right: -20px; /* Aumentado para que sobresalga más */
+  top: 24px;
+  z-index: 999; /* Z-index más alto */
+  width: 28px; /* Ligeramente más grande */
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+  user-select: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  /* Asegurar que siempre esté visible */
+  pointer-events: auto;
+  transform: translateZ(0); /* Forzar layer de composición */
+}
+
+.sidebar-collapse-button:hover {
+  transform: scale(1.05) translateZ(0);
+}
+
+.sidebar-collapse-button:active {
+  transform: scale(0.95) translateZ(0);
+}
+
+.sidebar-collapse-button:focus {
+  outline: 2px solid rgba(158, 158, 158, 0.5);
+  outline-offset: 2px;
+}
+
+.sidebar-collapse-button:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Light mode styling - mejorado */
+.sidebar-collapse-button {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(208, 213, 221, 0.9);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-collapse-button:hover {
+  background: rgba(248, 250, 252, 0.98);
+  border-color: rgba(158, 158, 158, 0.7);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2), 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Dark mode styling - mejorado */
+.dark .sidebar-collapse-button {
+  background: rgba(50, 50, 50, 0.95);
+  border: 1px solid rgba(158, 158, 158, 0.5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.dark .sidebar-collapse-button:hover {
+  background: rgba(60, 60, 60, 0.98);
+  border-color: rgba(158, 158, 158, 0.7);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5), 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* NUEVO: Sidebar Toggle Button Limpio - Sin indicadores de color */
+.sidebar-toggle-clean {
+  position: relative;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  user-select: none;
+}
+
+.sidebar-toggle-clean:hover {
+  transform: scale(1.1) translateY(-2px);
+  box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.25), 0 8px 16px -8px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-toggle-clean:active {
+  transform: scale(0.98);
+  box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.sidebar-toggle-clean:focus {
+  outline: 3px solid var(--accent-green);
+  outline-offset: 3px;
+}
+
+.sidebar-toggle-clean:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Dark mode adjustments para el toggle limpio */
+.dark .sidebar-toggle-clean:hover {
+  box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.4), 0 8px 16px -8px rgba(0, 0, 0, 0.2);
+}
+
+/* Container del icono mejorado */
+.sidebar-toggle-icon-enhanced {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-toggle-clean:hover .sidebar-toggle-icon-enhanced {
+  transform: scale(1.1);
+}
+
+.sidebar-toggle-clean:active .sidebar-toggle-icon-enhanced {
+  transform: scale(0.9);
+}
+
+/* Drag handle specific styling */
+.drag-handle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease-in-out;
+  cursor: move;
+}
+
+.drag-handle:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  transform: scale(1.1);
+}
+
+.dark .drag-handle:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.drag-handle:active {
+  background-color: rgba(0, 0, 0, 0.1);
+  transform: scale(0.95);
+}
+
+.dark .drag-handle:active {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Drag and Drop specific styling */
+.draggable-card {
+  transition: all 0.2s ease-in-out;
+  cursor: move;
+}
+
+.draggable-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+.dark .draggable-card:hover {
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+}
+
+.draggable-card.dragging {
+  transform: scale(1.05) rotate(2deg) translateY(-8px);
+  box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.3), 0 12px 15px -8px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  opacity: 0.9;
+}
+
+.dark .draggable-card.dragging {
+  box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.5), 0 12px 15px -8px rgba(0, 0, 0, 0.3);
+}
+
+.drop-zone {
+  position: relative;
+}
+
+.drop-zone::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -12px;
+  right: -12px;
+  bottom: 0;
+  border: 2px dashed var(--accent-green);
+  border-radius: 12px;
+  opacity: 0;
+  transition: all 0.2s ease-in-out;
+  background: rgba(58, 190, 118, 0.05);
+  pointer-events: none;
+}
+
+.drop-zone.drag-over::before {
+  opacity: 1;
+  transform: scale(1.02);
+}
+
+.valid-drop-target {
+  position: relative;
+}
+
+/* Drag preview styles */
+[data-draggable="true"] {
+  will-change: transform;
+}
+
+/* Enhanced financial card styling for drag operations */
+.financial-card[data-draggable="true"] {
+  cursor: move;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Carousel container styling */
+.swipe-container {
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+/* Special styling for sections without navigation arrows */
+.swipe-container.no-arrows {
+  margin: 0;
+  padding: 0;
+}
+
+/* Smooth scrolling behavior */
+.swipe-container .scrollbar-hide {
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+}
+
+/* Notification icon styling */
+.notification-icon {
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+  position: relative;
+}
+
+.notification-icon:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.notification-icon:active {
+  transform: scale(0.98);
+}
+
+.notification-icon:focus {
+  outline: 2px solid rgba(173, 173, 173, 0.5);
+  outline-offset: 2px;
+}
+
+.notification-icon:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Notification badge positioning */
+.notification-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  transform: translate(50%, -50%);
+  min-width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-red);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.dark .notification-badge {
+  border-color: var(--main-background);
+}
+
+/* Profile button styling */
+.profile-button {
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+  border-radius: 8px;
+  position: relative;
+}
+
+.profile-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.profile-button:active {
+  transform: scale(0.98);
+}
+
+.profile-button:focus {
+  outline: 2px solid var(--accent-green);
+  outline-offset: 2px;
+}
+
+.profile-button:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Mode changer specific styles - ACTUALIZADO PARA FIGMA DESIGN */
+.mode-changer-toggle {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.mode-changer-toggle:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.mode-changer-toggle:active {
+  transform: scale(0.98);
+}
+
+.mode-changer-toggle:focus {
+  outline: 2px solid var(--accent-green);
+  outline-offset: 2px;
+}
+
+.mode-changer-toggle:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Dark mode adjustments para mode changer */
+.dark .mode-changer-toggle:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Transiciones suaves para los elementos internos del mode changer */
+.mode-changer-toggle svg {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mode-changer-toggle div {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Global year selector styles */
+.year-selector select {
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.year-selector select:hover {
+  opacity: 0.8;
+}
+
+.year-selector select:focus {
+  outline: 2px solid var(--accent-green);
+  outline-offset: 2px;
+}
+
+/* Filter button styling */
+.filter-button {
+  transition: all 0.2s ease-in-out;
+  border-radius: 6px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 6px;
+}
+
+.filter-button:hover {
+  background-color: rgba(64, 64, 64, 0.05);
+  transform: scale(1.05);
+}
+
+.dark .filter-button:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.filter-button:active {
+  transform: scale(0.98);
+  background-color: rgba(64, 64, 64, 0.1);
+}
+
+.dark .filter-button:active {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.filter-button:focus {
+  outline: 2px solid var(--accent-green);
+  outline-offset: 2px;
+}
+
+.filter-button:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Section header specific styling */
+.section-header {
+  position: relative;
+  transition: all 0.2s ease-in-out;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.section-header:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode background patterns */
+.dark .main-background-pattern {
+  background-color: var(--main-background);
+}
+
+/* Dark mode section headers */
+.dark .section-header {
+  color: var(--text-primary);
+}
+
+.dark .section-header .section-title {
+  color: var(--text-primary);
+}
+
+.dark .section-header .filter-icon {
+  color: var(--border-medium);
+}
+
+/* Modal overlay specific styling */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: var(--card-background);
+  border-radius: 1rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 28rem;
+  max-height: 90vh;
+  overflow: hidden;
+  border: 1px solid var(--border-medium);
+}
+
+/* Filtros del modal - adaptables */
+.filter-modal-item {
+  background: transparent;
+  transition: all 0.2s ease-in-out;
+}
+
+.filter-modal-item:hover {
+  background: var(--section-background);
+}
+
+.filter-modal-item.selected {
+  background: rgba(58, 190, 118, 0.1);
+}
+
+/* Accessibility improvements - UPDATED */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-notification,
+  .animate-modal-appear,
+  .animate-dropdown-appear,
+  .notification-icon,
+  .mode-changer-toggle,
+  .profile-button,
+  .filter-button,
+  .financial-card,
+  .drag-handle,
+  .accordion-content,
+  .accordion-arrow,
+  .carousel-nav-button,
+  .section-header,
+  .collapse-button,
+  .year-selector-option,
+  .year-range-badge,
+  .year-chip,
+  .sidebar-toggle-clean,
+  .sidebar-toggle-icon-enhanced,
+  .sidebar-collapse-button {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .notification-icon:active,
+  .profile-button:active,
+  .mode-changer-toggle:active,
+  .filter-button:active,
+  .collapse-button:active,
+  .sidebar-toggle-clean:active,
+  .sidebar-collapse-button:active {
+    transform: scale(0.95);
+  }
+  
+  .financial-card:active {
+    transform: scale(1.02);
+  }
+  
+  .drag-handle:active {
+    background-color: var(--accent-green);
+    opacity: 0.1;
+    transform: scale(1.1);
+  }
+
+  .carousel-nav-button:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+
+  .section-header:active {
+    transform: scale(0.98);
+  }
+
+  .year-selector-option:active {
+    transform: scale(0.98);
+    background-color: rgba(58, 190, 118, 0.2);
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .financial-card,
+  .notification-icon,
+  .notification-badge,
+  .profile-button,
+  .filter-button,
+  .drag-handle,
+  .carousel-nav-button,
+  .modal-content,
+  .collapse-button,
+  .year-selector-dropdown,
+  .sidebar-toggle-clean,
+  .sidebar-collapse-button {
+    border: 2px solid;
+  }
+}
+
+/* Responsive improvements for navigation buttons */
+@media (max-width: 768px) {
+  .carousel-nav-button,
+  .sidebar-toggle-clean {
+    width: 48px;
+    height: 48px;
+  }
+
+  .section-container {
+    margin-bottom: 2rem;
+  }
+
+  .filter-button {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 8px;
+  }
+
+  .collapse-button {
+    width: 38px;
+    height: 38px;
+  }
+
+  .sidebar-container {
+    max-width: 90vw;
+  }
+}
+
+@media (max-width: 640px) {
+  .carousel-nav-button,
+  .sidebar-toggle-clean {
+    width: 44px;
+    height: 44px;
+  }
+
+  .filter-button {
+    min-width: 32px;
+    min-height: 32px;
+    padding: 6px;
+  }
+
+  .collapse-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .sidebar-container {
+    max-width: 100vw;
+  }
+}
+
+/* Hide scroll indicators on mobile webkit */
+@media (max-width: 768px) {
+  .swipe-container::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Layout containment for performance */
+.carousel-section {
+  contain: layout;
+}
+
+/* Focus states for keyboard navigation */
+.financial-card:focus-within {
+  outline: 2px solid var(--accent-green);
+  outline-offset: 2px;
+}
+
+.drag-handle:focus {
+  outline: 2px solid var(--accent-green);
+  outline-offset: 2px;
+  background-color: rgba(26, 110, 49, 0.1);
+}
+
+.dark .drag-handle:focus {
+  background-color: rgba(58, 190, 118, 0.1);
+}
+
+.section-header:focus-within {
+  outline: 2px solid var(--accent-green);
+  outline-offset: 2px;
+}
+
+.collapse-button:focus {
+  outline: 2px solid var(--accent-green);
+  outline-offset: 2px;
+}
+
+.sidebar-toggle-clean:focus {
+  outline: 3px solid var(--accent-green);
+  outline-offset: 3px;
+}
+
+/* Modal backdrop blur effect */
+.modal-backdrop {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Ensure modal appears above everything */
+.modal-z-index {
+  z-index: 9999 !important;
+}

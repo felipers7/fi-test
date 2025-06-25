@@ -1,26 +1,162 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Angular Global Styles */
+@import url("../styles/globals.css");
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* Angular-specific global styles */
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+app-root {
+  display: block;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* Angular Material compatibility if needed */
+.mat-button,
+.mat-raised-button,
+.mat-icon-button,
+.mat-stroked-button,
+.mat-flat-button,
+.mat-fab,
+.mat-mini-fab {
+  font-family: "Inter", sans-serif;
+}
+
+/* Angular specific component styling */
+.ng-star-inserted {
+  /* Ensure proper display for dynamically inserted content */
+  display: block;
+}
+
+/* Angular animation improvements */
+.ng-animating {
+  /* Prevent layout shifts during animations */
+  contain: layout;
+}
+
+/* Angular form styling */
+.ng-valid {
+  border-color: #10b981;
+}
+
+.ng-invalid.ng-touched {
+  border-color: #ef4444;
+}
+
+/* Angular router outlet */
+router-outlet {
+  display: none;
+}
+
+/* Angular directive styling */
+[hidden] {
+  display: none !important;
+}
+
+/* Angular accessibility improvements */
+.cdk-visually-hidden {
+  border: 0;
+  clip: rect(0 0 0 0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: 1px;
+  outline: 0;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+/* Angular CDK overlay */
+.cdk-overlay-container {
+  pointer-events: none;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  position: fixed;
+  z-index: 1000;
+}
+
+.cdk-overlay-backdrop {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 400ms cubic-bezier(0.25, 0.8, 0.25, 1);
+  opacity: 0;
+}
+
+.cdk-overlay-backdrop.cdk-overlay-backdrop-showing {
+  opacity: 1;
+}
+
+.cdk-overlay-pane {
+  position: absolute;
+  pointer-events: auto;
+  box-sizing: border-box;
+  z-index: 1000;
+  display: flex;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* Angular component host styling */
+:host-context(.dark) {
+  color-scheme: dark;
+}
+
+/* Angular change detection optimization */
+.onpush {
+  /* For OnPush components that need specific styling */
+  contain: content;
+}
+
+/* Angular performance optimizations */
+.trackby-optimized {
+  /* For components using trackBy functions */
+  contain: layout style;
+}
+
+/* Angular standalone component improvements */
+.standalone-component {
+  display: block;
+  contain: content;
+}
+
+/* Angular structural directive improvements */
+.ng-container {
+  display: contents;
+}
+
+/* Angular template reference variable improvements */
+.template-ref {
+  display: block;
+  position: relative;
+}
+
+/* Angular lifecycle hook optimizations */
+.lifecycle-optimized {
+  contain: layout;
+}
+
+/* Angular signal-based component optimizations */
+.signal-component {
+  contain: content;
+}
+
+/* Angular zoneless optimizations */
+.zoneless {
+  contain: strict;
 }
