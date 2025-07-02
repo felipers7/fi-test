@@ -1,0 +1,110 @@
+/* Section Filter specific styles */
+:host {
+  display: contents;
+}
+
+/* Modal and overlay styling */
+.animate-dropdown-appear {
+  animation: dropdown-appear 0.2s ease-out;
+}
+
+@keyframes dropdown-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Filter select styling */
+.filter-select {
+  position: relative;
+  z-index: 100;
+}
+
+.filter-select-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  margin-top: 4px;
+  animation: dropdown-appear 0.15s ease-out;
+}
+
+/* Checkbox item styling in filter */
+.filter-checkbox-item {
+  transition: all 0.15s ease-out;
+  border-radius: 4px;
+  padding: 4px;
+}
+
+.filter-checkbox-item:hover {
+  background-color: rgba(46, 100, 157, 0.05);
+}
+
+.filter-checkbox-item:active {
+  background-color: rgba(46, 100, 157, 0.1);
+}
+
+/* Filter modal buttons */
+.filter-cancel-button {
+  transition: all 0.2s ease-in-out;
+}
+
+.filter-cancel-button:hover {
+  background-color: rgba(176, 0, 32, 0.05);
+  border-color: rgba(176, 0, 32, 0.8);
+}
+
+.filter-cancel-button:active {
+  background-color: rgba(176, 0, 32, 0.1);
+  transform: scale(0.98);
+}
+
+.filter-apply-button {
+  transition: all 0.2s ease-in-out;
+}
+
+.filter-apply-button:hover {
+  background-color: rgba(26, 110, 49, 0.9);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(26, 110, 49, 0.2);
+}
+
+.filter-apply-button:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Focus states for accessibility */
+.filter-checkbox-item:focus {
+  outline: 2px solid rgba(46, 100, 157, 0.7);
+  outline-offset: 2px;
+  background-color: rgba(46, 100, 157, 0.1);
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .filter-checkbox-item {
+    padding: 12px 8px;
+    min-height: 44px;
+  }
+
+  .filter-cancel-button:active,
+  .filter-apply-button:active {
+    transform: scale(0.95);
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .filter-cancel-button,
+  .filter-apply-button,
+  .filter-checkbox-item {
+    transition: none !important;
+    animation: none !important;
+  }
+}

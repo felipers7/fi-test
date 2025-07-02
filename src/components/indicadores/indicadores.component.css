@@ -1,0 +1,241 @@
+/* Indicadores component specific styles */
+:host {
+  display: block;
+  width: 100%;
+}
+
+/* Responsive grid layout for indicator cards */
+.indicadores-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+/* Individual indicator card styling */
+.indicator-card {
+  flex-shrink: 0;
+  background: #ffffff;
+  border-radius: 18.9259px;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0px 4px 4px 0px rgba(0,0,0,0.04);
+  transition: all 0.2s ease-in-out;
+}
+
+.indicator-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Drag handle styling for indicators */
+.indicator-drag-handle {
+  cursor: move;
+  transition: all 0.2s ease-in-out;
+}
+
+.indicator-drag-handle:hover {
+  transform: scale(1.1);
+  opacity: 0.8;
+}
+
+.indicator-drag-handle:active {
+  transform: scale(0.95);
+}
+
+/* Select dropdown styling for indicators */
+.indicator-select {
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.indicator-select:hover {
+  border-color: rgba(64, 64, 64, 0.3);
+  background-color: rgba(64, 64, 64, 0.02);
+}
+
+.indicator-select:focus-within {
+  border-color: rgba(64, 64, 64, 0.5);
+  box-shadow: 0 0 0 2px rgba(64, 64, 64, 0.1);
+}
+
+/* Info icon styling */
+.info-icon {
+  transition: all 0.2s ease-in-out;
+  cursor: help;
+}
+
+.info-icon:hover {
+  transform: scale(1.1);
+  opacity: 0.8;
+}
+
+/* Text styling for different types of values */
+.value-positive {
+  color: #2e649d;
+}
+
+.value-negative {
+  color: #b00020;
+}
+
+.value-neutral {
+  color: #9d9292;
+}
+
+.value-result {
+  color: #b00020;
+  font-weight: 500;
+}
+
+/* Dashed border styling */
+.dashed-border {
+  border-bottom: 0.8px dashed #374151;
+}
+
+/* Section headers */
+.section-header {
+  font-weight: 500;
+  color: #9d9292;
+}
+
+.section-header-large {
+  font-size: 20px;
+  font-weight: 400;
+  color: #9d9292;
+}
+
+/* Responsive design */
+@media (max-width: 1280px) {
+  .indicadores-grid {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .indicadores-grid {
+    gap: 1rem;
+  }
+  
+  .indicator-card {
+    min-width: 100% !important;
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .indicadores-grid {
+    gap: 0.75rem;
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .indicator-card,
+  .indicator-drag-handle,
+  .indicator-select,
+  .info-icon {
+    transition: none !important;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .indicator-drag-handle:active {
+    transform: scale(0.95);
+  }
+  
+  .info-icon:active {
+    transform: scale(0.95);
+  }
+}
+
+/* Focus states for accessibility */
+.indicator-select:focus {
+  outline: 2px solid rgba(64, 64, 64, 0.3);
+  outline-offset: 2px;
+}
+
+.indicator-drag-handle:focus {
+  outline: 2px solid rgba(64, 64, 64, 0.3);
+  outline-offset: 2px;
+}
+
+.info-icon:focus {
+  outline: 2px solid rgba(64, 64, 64, 0.3);
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .indicator-card {
+    border: 2px solid;
+  }
+}
+
+/* Card content layout improvements */
+.indicator-content {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+/* Table-like layout for data rows */
+.data-row {
+  display: flex;
+  align-items: center;
+  min-height: 34.111px;
+  position: relative;
+}
+
+.data-row::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 0.8px;
+  background: repeating-linear-gradient(
+    to right,
+    #374151 0,
+    #374151 4px,
+    transparent 4px,
+    transparent 8px
+  );
+  pointer-events: none;
+}
+
+/* Layout for parameter items */
+.parameter-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 25px;
+  padding: 0;
+}
+
+.parameter-label {
+  flex: 1;
+  text-align: left;
+}
+
+.parameter-value {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+/* Custom styling for selects */
+.custom-select {
+  appearance: none;
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding-right: 24px;
+}
+
+.custom-select:focus {
+  outline: 2px solid rgba(64, 64, 64, 0.3);
+  outline-offset: 2px;
+}

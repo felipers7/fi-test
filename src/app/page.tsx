@@ -22,8 +22,8 @@ const mockFinancialData = {
   result: 15376
 };
 
-// Additional sample data for variety
-const mockData2 = {
+// Additional sample data for variety - DEFAULT FALLBACK
+const mockData2Default = {
   dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
   values: [120000, 135000, 150000, 165000, 180000, 195000, 210000, 225000],
   result: 18250
@@ -79,19 +79,7 @@ interface SectionFilters {
 
 type SectionKey = 'crecimiento' | 'riesgo' | 'flujo' | 'rentabilidad';
 
-// Static data arrays to prevent recreation on every render
-const SECTION_DATA = {
-  crecimiento: [
-    mockFinancialData, mockData2, mockData3, mockFinancialData, mockData2,
-    mockData3, mockFinancialData, mockData4, mockData5
-  ],
-  riesgo: [
-    mockFinancialData, mockData2, mockData3, mockData4, mockData5,
-    mockData6, mockData7, mockData8, mockData9
-  ],
-  flujo: [mockFinancialData, mockData2, mockData3],
-  rentabilidad: [mockData3, mockData4, mockData5]
-};
+
 
 // Updated year ranges - 1 año now starts from 2025, matching GlobalYearSelector
 const YEAR_RANGES = [
@@ -128,6 +116,72 @@ const YEAR_RANGES = [
 ];
 
 export default function App() {
+  // Estado para datos de utilidad - start with null to avoid showing stale data
+  const [utilidadData, setUtilidadData] = useState<any>(null);
+  const [isLoadingUtilidad, setIsLoadingUtilidad] = useState(true);
+
+  // Dynamic mockData2 that gets replaced by API data
+  const mockData2 = useMemo(() => {
+    return utilidadData || mockData2Default;
+  }, [utilidadData]);
+
+  // Debug effect to track utilidadData changes
+  useEffect(() => {
+    console.log('utilidadData state changed:', utilidadData);
+    console.log('mockData2 (dynamic) state changed:', mockData2);
+    console.log('isLoadingUtilidad:', isLoadingUtilidad);
+  }, [utilidadData, mockData2, isLoadingUtilidad]);
+
+  const fetchUtilidadData = async () => {
+    try {
+      console.log('Fetching utilidad data...');
+      setIsLoadingUtilidad(true);
+
+      // Add cache busting and no-cache headers
+      const response = await fetch('/api/utilidad', {
+        method: 'GET',
+
+        // Add timestamp to prevent caching
+        cache: 'no-store'
+      });
+      console.log('Response status:', response.status);
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('API response:', result);
+
+        if (result.success && result.data) {
+          console.log("Setting utilidad data:", result.data);
+          // Ensure we're setting fresh data
+          setUtilidadData({ ...result.data });
+        } else {
+          console.error('API returned unsuccessful response:', result);
+          // Fallback to default data if API fails
+          setUtilidadData(mockData2Default);
+        }
+      } else {
+        console.error('Response not ok:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('Error response body:', errorText);
+        // Fallback to default data if API fails
+        setUtilidadData(mockData2Default);
+      }
+    } catch (error) {
+      console.error('Failed to fetch utilidad data:', error);
+      // Fallback to default data if network error
+      setUtilidadData(mockData2Default);
+    } finally {
+      setIsLoadingUtilidad(false);
+      console.log('Finished fetching utilidad data');
+    }
+  };
+
+
+  // Fetch utilidad data on mount
+  useEffect(() => {
+    fetchUtilidadData();
+  }, []);
+
   // Estados principales
   const [sectionStates, setSectionStates] = useState({
     crecimiento: false,
@@ -278,6 +332,20 @@ export default function App() {
     }
   }, [arraysEqual]);
 
+  // Dynamic SECTION_DATA with utilidadData
+  const SECTION_DATA = useMemo(() => ({
+    crecimiento: [
+      mockFinancialData, mockData2, mockData3, mockFinancialData, mockData2,
+      mockData3, mockFinancialData, mockData4, mockData5
+    ],
+    riesgo: [
+      mockFinancialData, mockData2, mockData3, mockData4, mockData5,
+      mockData6, mockData7, mockData8, mockData9
+    ],
+    flujo: [mockFinancialData, mockData2, mockData3],
+    rentabilidad: [mockData3, mockData4, mockData5]
+  }), [mockData2]);
+
   // Memoized filtered cards to prevent recreation on every render
   const createCardData = useCallback((dataArray: any[], keyPrefix: string, sectionKey: SectionKey) => {
     const filters = sectionFilters[sectionKey];
@@ -303,22 +371,22 @@ export default function App() {
   // Memoized card data for each section
   const crecimientoCardData = useMemo(() =>
     createCardData(SECTION_DATA.crecimiento, 'crecimiento', 'crecimiento'),
-    [createCardData]
+    [createCardData, SECTION_DATA.crecimiento]
   );
 
   const riesgoCardData = useMemo(() =>
     createCardData(SECTION_DATA.riesgo, 'riesgo', 'riesgo'),
-    [createCardData]
+    [createCardData, SECTION_DATA.riesgo]
   );
 
   const flujoCardData = useMemo(() =>
     createCardData(SECTION_DATA.flujo, 'flujo', 'flujo'),
-    [createCardData]
+    [createCardData, SECTION_DATA.flujo]
   );
 
   const rentabilidadCardData = useMemo(() =>
     createCardData(SECTION_DATA.rentabilidad, 'rentabilidad', 'rentabilidad'),
-    [createCardData]
+    [createCardData, SECTION_DATA.rentabilidad]
   );
 
   // Function to create React elements from card data
@@ -793,11 +861,21 @@ export default function App() {
                             {companyValue.toLocaleString('es-ES')}
                           </span>
                         </div>
-                        <div className="mt-1">
+                        <div className="mt-1 space-y-1">
                           <span className="text-xs sm:text-sm"
                             style={{ color: isDarkMode ? '#adadad' : '#9d9292' }}>
                             {analysisTypeTitle}
                           </span>
+                          {/* Data source indicator */}
+                          <div className="text-xs" style={{ color: isDarkMode ? '#666' : '#999' }}>
+                            {isLoadingUtilidad ? (
+                              '⏳ Cargando datos...'
+                            ) : utilidadData ? (
+                              '✅ Datos API cargados - Todas las tarjetas actualizadas'
+                            ) : (
+                              '⚠️ Usando datos de prueba'
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>

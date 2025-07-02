@@ -1,0 +1,250 @@
+/* Carousel section specific styles */
+:host {
+  display: block;
+  width: 100%;
+}
+
+/* Accordion animations */
+.accordion-content {
+  overflow: hidden;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.accordion-content[data-state="closed"] {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.accordion-content[data-state="open"] {
+  max-height: 1000px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Arrow rotation animation */
+.accordion-arrow {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.accordion-arrow.rotated {
+  transform: rotate(180deg);
+}
+
+/* Button hover effects */
+.accordion-button {
+  transition: all 0.2s ease-in-out;
+}
+
+.accordion-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Carousel container styling */
+.swipe-container {
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+/* Special styling for sections without navigation arrows */
+.swipe-container.no-arrows {
+  margin: 0;
+  padding: 0;
+}
+
+/* Hide scrollbar for webkit browsers */
+.scrollbar-hide {
+  -webkit-overflow-scrolling: touch;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Smooth scrolling behavior */
+.carousel-container {
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+}
+
+/* Enhanced carousel navigation styling */
+.carousel-nav-button {
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  z-index: 20;
+  position: relative;
+}
+
+.carousel-nav-button:hover:not(:disabled) {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px) scale(1.05);
+}
+
+.carousel-nav-button:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
+}
+
+.carousel-nav-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.carousel-nav-button:disabled:hover {
+  transform: none;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Filter button styling */
+.filter-button {
+  transition: all 0.2s ease-in-out;
+  border-radius: 8px;
+  position: relative;
+}
+
+.filter-button:hover {
+  background-color: rgba(64, 64, 64, 0.05);
+  transform: scale(1.05);
+}
+
+.filter-button:active {
+  transform: scale(0.98);
+  background-color: rgba(64, 64, 64, 0.1);
+}
+
+.filter-button:focus {
+  outline: 2px solid rgba(64, 64, 64, 0.3);
+  outline-offset: 2px;
+}
+
+.filter-button:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Arrow button animations */
+.arrow-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.arrow-button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: all 0.3s ease-out;
+}
+
+.arrow-button:hover:not(:disabled)::before {
+  width: 100%;
+  height: 100%;
+}
+
+.arrow-button:active:not(:disabled)::before {
+  width: 120%;
+  height: 120%;
+}
+
+/* Enhanced focus states */
+.arrow-button:focus {
+  outline: 2px solid rgba(158, 158, 158, 0.5);
+  outline-offset: 2px;
+}
+
+.arrow-button:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Cards alignment for sections with 3 or fewer cards */
+.swipe-container.no-arrows .scrollbar-hide {
+  justify-content: flex-start;
+}
+
+/* On larger screens, center the cards when there are 3 or fewer */
+@media (min-width: 1024px) {
+  .swipe-container.no-arrows .scrollbar-hide {
+    justify-content: flex-start;
+  }
+}
+
+/* Enhanced styling for sections without arrows */
+.section-no-arrows {
+  width: 100%;
+}
+
+.section-no-arrows .swipe-container {
+  width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+.section-no-arrows .scrollbar-hide {
+  display: flex;
+  flex-direction: row;
+  gap: 2rem;
+  padding: 0;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+}
+
+/* Responsive improvements for navigation buttons */
+@media (max-width: 768px) {
+  .carousel-nav-button {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (max-width: 640px) {
+  .carousel-nav-button {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .carousel-nav-button:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+
+  .filter-button:active {
+    transform: scale(0.95);
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .accordion-content,
+  .accordion-arrow,
+  .carousel-nav-button,
+  .arrow-button,
+  .filter-button {
+    transition: none !important;
+  }
+}
+
+/* Hide scroll indicators on mobile webkit */
+@media (max-width: 768px) {
+  .swipe-container::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Prevent layout shift during interactions */
+.carousel-section {
+  contain: layout;
+}

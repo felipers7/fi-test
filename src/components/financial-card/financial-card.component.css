@@ -1,0 +1,146 @@
+/* Financial card specific styles */
+:host {
+  display: block;
+  position: relative;
+}
+
+.financial-card {
+  transition: all 0.2s ease-in-out;
+  position: relative;
+  flex-shrink: 0;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0px 4px 4px 0px rgba(0,0,0,0.04);
+}
+
+.financial-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.financial-card.draggable {
+  cursor: move;
+}
+
+.financial-card.draggable:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.15), 0 10px 15px -5px rgba(0, 0, 0, 0.1);
+}
+
+.drag-handle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease-in-out;
+  cursor: move;
+}
+
+.drag-handle:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  transform: scale(1.1);
+}
+
+.drag-handle:active {
+  background-color: rgba(0, 0, 0, 0.1);
+  transform: scale(0.95);
+}
+
+/* Card content styling */
+.card-title {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  color: #9d9292;
+  line-height: 1;
+}
+
+.result-number {
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 28px;
+  color: #b00020;
+  line-height: 1;
+}
+
+.value-text {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  color: #2e649d;
+  line-height: 1;
+}
+
+.year-label {
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  color: #374151;
+  line-height: 1;
+}
+
+/* Responsive sizing */
+@media (max-width: 639px) {
+  .financial-card {
+    min-width: 300px !important;
+    max-width: 300px !important;
+    width: 300px !important;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .financial-card {
+    min-width: 350px !important;
+    max-width: 350px !important;
+    width: 350px !important;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1535px) {
+  .financial-card {
+    min-width: 370px !important;
+    max-width: 370px !important;
+    width: 370px !important;
+  }
+}
+
+@media (min-width: 1536px) {
+  .financial-card {
+    min-width: 390px !important;
+    max-width: 390px !important;
+    width: 390px !important;
+  }
+}
+
+/* Focus states for accessibility */
+.financial-card:focus-within {
+  outline: 2px solid rgba(26, 110, 49, 0.5);
+  outline-offset: 2px;
+}
+
+.drag-handle:focus {
+  outline: 2px solid rgba(26, 110, 49, 0.7);
+  outline-offset: 2px;
+  background-color: rgba(26, 110, 49, 0.1);
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .financial-card.draggable:active {
+    transform: scale(1.02);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+  }
+  
+  .drag-handle:active {
+    background-color: rgba(26, 110, 49, 0.1);
+    transform: scale(1.1);
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .financial-card,
+  .drag-handle {
+    transition: none !important;
+  }
+}
