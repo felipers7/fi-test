@@ -365,3 +365,57 @@ values
 (800002,-49994370,2021),
 (800002,-57205329,2022),
 (800002,-64470943,2023);
+
+
+
+create table formulas(
+	fmls_codigo  int NOT NULL,
+	fmls_desc  TEXT NOT NULL,
+    fmls_body  TEXT NOT NULL,
+    fmls_ano int,
+	PRIMARY KEY (fmls_codigo)
+);
+
+INSERT INTO formulas (fmls_codigo, fmls_desc, fmls_body, fmls_ano) VALUES
+    (10001, 'utilidad_basica',      'SUM("100000") - SUM("200000")',2024),
+    (10002, 'utilidad_operacional', 'SUM("400000") - SUM("600000")',2024),
+    (10003, 'utilidad_neta',        '(SUM("400000") - SUM("600000")) * 0.8',2024),
+    (10004, 'patrimonio',           'SUM("100000") - SUM("200000")',2024),
+    (10005, 'liquidez_ratio',       'SUM("100000") / SUM("200000")',2024),
+    (10006, 'rentabilidad',         '(SUM("400000") - SUM("600000")) / SUM("100000") * 100',2024),
+    (10007, 'promedio_activos',     'AVG("100000")',2024),
+    (10008, 'total_cuentas',        'COUNT("100000") + COUNT("200000")',2024),
+    (10009, 'activo_maximo',        'MAX("100000")',2024),
+    (10010, 'roi',                  '(SUM("400000") - SUM("600000")) / SUM("100000") * 100',2024),
+    (10011, 'debt_ratio',           'SUM("200000") / SUM("100000")',2024),
+    (10012, 'profit_margin',        '(SUM("400000") - SUM("600000")) / SUM("400000") * 100',2024),
+    (10013, 'complex_formula',      '(SUM("100000") * 1.2) - (SUM("200000") * 0.8) + (SUM("400000") - SUM("600000")) / 2',2024);
+
+
+
+
+INSERT INTO formulas (fmls_codigo, fmls_desc, fmls_body, fmls_ano) VALUES
+    (90001, 'utilidad_basica_proyeccion', 'utilidad_basica * param + 25',2024),
+    (90002, 'utilidad_basica_proyeccion', 'utilidad_basica * param',null),
+
+
+
+
+
+create table parametros(
+  prmt_codigo text NOT NULL,
+  prmt_desc TEXT NOT NULL,
+  prmt_valor decimal(18,2) NOT NULL,
+  PRIMARY KEY (prmt_codigo)
+);
+
+
+
+
+
+
+insert into parametros (prmt_codigo, prmt_desc, prmt_valor) values 
+('EV_ABR', 'estacionalidad ventas', 0.1),
+('PROY_UTIL', 'estacionalidad ventas', 0.8);
+
+

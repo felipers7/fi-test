@@ -1,107 +1,141 @@
 import { NextResponse } from 'next/server';
 import { create, all } from 'mathjs';
+import mysql from 'mysql2/promise';
 
-// Financial accounts data
+// Database configuration
+const dbConfig = {
+    host: 'localhost',
+    user: 'root',
+    password: '1234',
+    database: 'fi',
+    port: 3306
+};
 
-const cuentas = [
-    { "tipo": "activos", "valor": 150000, "nombre": "caja y bancos", "ano": 2022 },
-    { "tipo": "activos", "valor": 100000, "nombre": "cuentas por cobrar", "ano": 2022 },
-    { "tipo": "activos", "valor": 550000, "nombre": "propiedades, planta y equipo", "ano": 2022 },
-    { "tipo": "activos", "valor": 160000, "nombre": "caja y bancos", "ano": 2022 },
-    { "tipo": "activos", "valor": 180000, "nombre": "cuentas por cobrar", "ano": 2022 },
-    { "tipo": "activos", "valor": 590000, "nombre": "propiedades, planta y equipo", "ano": 2022 },
-    { "tipo": "activos", "valor": 150000, "nombre": "caja y bancos", "ano": 2023 },
-    { "tipo": "activos", "valor": 100000, "nombre": "cuentas por cobrar", "ano": 2023 },
-    { "tipo": "activos", "valor": 550000, "nombre": "propiedades, planta y equipo", "ano": 2023 },
-    { "tipo": "activos", "valor": 160000, "nombre": "caja y bancos", "ano": 2023 },
-    { "tipo": "activos", "valor": 180000, "nombre": "cuentas por cobrar", "ano": 2023 },
-    { "tipo": "activos", "valor": 590000, "nombre": "propiedades, planta y equipo", "ano": 2023 },
-    { "tipo": "activos", "valor": 150000, "nombre": "caja y bancos", "ano": 2024 },
-    { "tipo": "activos", "valor": 100000, "nombre": "cuentas por cobrar", "ano": 2024 },
-    { "tipo": "activos", "valor": 550000, "nombre": "propiedades, planta y equipo", "ano": 2024 },
-    { "tipo": "activos", "valor": 160000, "nombre": "caja y bancos", "ano": 2024 },
-    { "tipo": "activos", "valor": 180000, "nombre": "cuentas por cobrar", "ano": 2024 },
-    { "tipo": "activos", "valor": 590000, "nombre": "propiedades, planta y equipo", "ano": 2024 },
-    { "tipo": "activos", "valor": 150000, "nombre": "caja y bancos", "ano": 2025 },
-    { "tipo": "activos", "valor": 100000, "nombre": "cuentas por cobrar", "ano": 2025 },
-    { "tipo": "activos", "valor": 550000, "nombre": "propiedades, planta y equipo", "ano": 2025 },
-    { "tipo": "activos", "valor": 160000, "nombre": "caja y bancos", "ano": 2025 },
-    { "tipo": "activos", "valor": 180000, "nombre": "cuentas por cobrar", "ano": 2025 },
-    { "tipo": "activos", "valor": 590000, "nombre": "propiedades, planta y equipo", "ano": 2025 },
-    { "tipo": "activos", "valor": 150000, "nombre": "caja y bancos", "ano": 2026 },
-    { "tipo": "activos", "valor": 100000, "nombre": "cuentas por cobrar", "ano": 2026 },
-    { "tipo": "activos", "valor": 550000, "nombre": "propiedades, planta y equipo", "ano": 2026 },
-    { "tipo": "activos", "valor": 160000, "nombre": "caja y bancos", "ano": 2026 },
-    { "tipo": "activos", "valor": 180000, "nombre": "cuentas por cobrar", "ano": 2026 },
-    { "tipo": "activos", "valor": 590000, "nombre": "propiedades, planta y equipo", "ano": 2026 },
-    { "tipo": "activos", "valor": 150000, "nombre": "caja y bancos", "ano": 2027 },
-    { "tipo": "activos", "valor": 100000, "nombre": "cuentas por cobrar", "ano": 2027 },
-    { "tipo": "activos", "valor": 550000, "nombre": "propiedades, planta y equipo", "ano": 2027 },
-    { "tipo": "activos", "valor": 160000, "nombre": "caja y bancos", "ano": 2027 },
-    { "tipo": "activos", "valor": 180000, "nombre": "cuentas por cobrar", "ano": 2027 },
-    { "tipo": "activos", "valor": 590000, "nombre": "propiedades, planta y equipo", "ano": 2027 },
-    { "tipo": "activos", "valor": 150000, "nombre": "caja y bancos", "ano": 2028 },
-    { "tipo": "activos", "valor": 100000, "nombre": "cuentas por cobrar", "ano": 2028 },
-    { "tipo": "activos", "valor": 550000, "nombre": "propiedades, planta y equipo", "ano": 2028 },
-    { "tipo": "activos", "valor": 160000, "nombre": "caja y bancos", "ano": 2028 },
-    { "tipo": "activos", "valor": 180000, "nombre": "cuentas por cobrar", "ano": 2028 },
-    { "tipo": "activos", "valor": 590000, "nombre": "propiedades, planta y equipo", "ano": 2028 },
-    { "tipo": "activos", "valor": 150000, "nombre": "caja y bancos", "ano": 2029 },
-    { "tipo": "activos", "valor": 100000, "nombre": "cuentas por cobrar", "ano": 2029 },
-    { "tipo": "activos", "valor": 550000, "nombre": "propiedades, planta y equipo", "ano": 2029 },
-    { "tipo": "activos", "valor": 160000, "nombre": "caja y bancos", "ano": 2029 },
-    { "tipo": "activos", "valor": 180000, "nombre": "cuentas por cobrar", "ano": 2029 },
-    { "tipo": "activos", "valor": 590000, "nombre": "propiedades, planta y equipo", "ano": 2029 },
+// No hard-coded mapping. Account types will be resolved directly from the database names (e.g. "ACTIVO", "PASIVO").
 
-    // Adding some pasivos data for testing eval functions
-    { "tipo": "pasivos", "valor": 200000, "nombre": "cuentas por pagar", "ano": 2022 },
-    { "tipo": "pasivos", "valor": 150000, "nombre": "préstamos bancarios", "ano": 2022 },
-    { "tipo": "pasivos", "valor": 180000, "nombre": "cuentas por pagar", "ano": 2023 },
-    { "tipo": "pasivos", "valor": 140000, "nombre": "préstamos bancarios", "ano": 2023 },
-    { "tipo": "pasivos", "valor": 160000, "nombre": "cuentas por pagar", "ano": 2024 },
-    { "tipo": "pasivos", "valor": 130000, "nombre": "préstamos bancarios", "ano": 2024 },
+// Create MySQL connection
+async function connectToDatabase() {
+    try {
+        const connection = await mysql.createConnection(dbConfig);
+        return connection;
+    } catch (error) {
+        console.error('Database connection failed:', error);
+        throw error;
+    }
+}
 
-    // Optional: add some ingresos/gastos for more complex eval expressions
-    { "tipo": "ingresos", "valor": 800000, "nombre": "ventas", "ano": 2022 },
-    { "tipo": "gastos", "valor": 300000, "nombre": "costo de ventas", "ano": 2022 },
-    { "tipo": "ingresos", "valor": 850000, "nombre": "ventas", "ano": 2023 },
-    { "tipo": "gastos", "valor": 320000, "nombre": "costo de ventas", "ano": 2023 },
-]
+// Parse formula to extract PARENT account codes referenced (e.g., "100000", "200000")
+function parseParentCodesFromFormula(formula: string): string[] {
+    const codes = new Set<string>();
+
+    const regex = /"(\d+)"/g; // capture numeric codes inside quotes
+    let match;
+
+    while ((match = regex.exec(formula)) !== null) {
+        codes.add(match[1]);
+    }
+
+    console.log(`Formula: ${formula}`);
+    console.log(`Extracted parent codes:`, Array.from(codes));
+
+    return Array.from(codes);
+}
+
+// Get formula from database (case insensitive)
+async function getFormulaFromDB(formulaName: string): Promise<string> {
+    const connection = await connectToDatabase();
+
+    try {
+        const query = `
+            SELECT fmls_body 
+            FROM formulas 
+            WHERE LOWER(fmls_desc) = LOWER(?)
+        `;
+
+        const [rows] = await connection.execute(query, [formulaName]) as any;
+        await connection.end();
+
+        if (rows.length === 0) {
+            throw new Error(`Formula ${formulaName} not found in database`);
+        }
+
+        return rows[0].fmls_body;
+    } catch (error) {
+        await connection.end();
+        console.error('Failed to get formula from database:', error);
+        throw error;
+    }
+}
+
+// Get financial data from database for specific account types only
+async function getFinancialDataOptimized(startYear: number, endYear: number, parentCodes: string[]): Promise<any[]> {
+    const connection = await connectToDatabase();
+
+    try {
+        // Build placeholders for parent codes
+        const placeholders = parentCodes.map(() => '?').join(',');
+
+        const query = `
+            SELECT 
+                b.blnc_ano as ano,
+                CASE WHEN mc.macu_codigo_padre IS NULL THEN mc.macu_codigo ELSE mc.macu_codigo_padre END AS parent_code,
+                b.blnc_monto AS valor
+            FROM balances b
+            JOIN maestro_cuentas mc ON b.macu_codigo = mc.macu_codigo
+            WHERE b.blnc_ano BETWEEN ? AND ? 
+            AND (mc.macu_codigo IN (${placeholders}) OR mc.macu_codigo_padre IN (${placeholders}))
+            ORDER BY b.blnc_ano
+        `;
+
+        const queryParams = [startYear, endYear, ...parentCodes, ...parentCodes];
+        console.log('Optimized SQL Query:', query);
+        console.log('Query Parameters:', queryParams);
+
+        const [rows] = await connection.execute(query, queryParams);
+        await connection.end();
+
+        return rows as any[];
+    } catch (error) {
+        await connection.end();
+        console.error('Database query failed:', error);
+        throw error;
+    }
+}
 
 // ========== MATH.JS DATABASE FORMULA EVALUATOR ==========
 // Perfect for storing formulas in database!
 
-function evaluateDatabaseFormula(data: any[], year: number, formulaString: string): number {
-    const yearData = data.filter(item => item.ano === year);
+async function evaluateDatabaseFormula(allData: any[], year: number, formulaString: string): Promise<number> {
+    const yearData = allData.filter(item => item.ano === year);
 
     // Create math.js instance
     const math = create(all, {});
 
     // Add custom functions to math.js scope
     math.import({
-        SUM: (tipo: string) => {
+        SUM: (code: string) => {
             return yearData
-                .filter(item => item.tipo === tipo)
-                .reduce((sum, item) => sum + item.valor, 0);
+                .filter(item => item.parent_code == code)
+                .reduce((sum, item) => sum + parseFloat(item.valor), 0);
         },
-        COUNT: (tipo: string) => {
-            return yearData.filter(item => item.tipo === tipo).length;
+        COUNT: (code: string) => {
+            return yearData.filter(item => item.parent_code == code).length;
         },
-        AVG: (tipo: string) => {
-            const items = yearData.filter(item => item.tipo === tipo);
+        AVG: (code: string) => {
+            const items = yearData.filter(item => item.parent_code == code);
             if (items.length === 0) return 0;
-            const total = items.reduce((sum, item) => sum + item.valor, 0);
+            const total = items.reduce((sum, item) => sum + parseFloat(item.valor), 0);
             return total / items.length;
         },
-        MAX: (tipo: string) => {
-            const items = yearData.filter(item => item.tipo === tipo);
+        MAX: (code: string) => {
+            const items = yearData.filter(item => item.parent_code == code);
             if (items.length === 0) return 0;
-            return Math.max(...items.map(item => item.valor));
+            return Math.max(...items.map(item => parseFloat(item.valor)));
         },
-        MIN: (tipo: string) => {
-            const items = yearData.filter(item => item.tipo === tipo);
+        MIN: (code: string) => {
+            const items = yearData.filter(item => item.parent_code == code);
             if (items.length === 0) return 0;
-            return Math.min(...items.map(item => item.valor));
+            return Math.min(...items.map(item => parseFloat(item.valor)));
         }
     });
 
@@ -115,35 +149,27 @@ function evaluateDatabaseFormula(data: any[], year: number, formulaString: strin
     }
 }
 
-// ========== DATABASE FORMULA EXAMPLES ==========
-// Store these strings directly in your database!
-const databaseFormulas = {
-    utilidad_basica: `SUM("activos") - SUM("pasivos")`,
-    utilidad_operacional: `SUM("ingresos") - SUM("gastos")`,
-    utilidad_neta: `(SUM("ingresos") - SUM("gastos")) * 0.8`,
-    patrimonio: `SUM("activos") - SUM("pasivos")`,
-    liquidez_ratio: `SUM("activos") / SUM("pasivos")`,
-    rentabilidad: `(SUM("ingresos") - SUM("gastos")) / SUM("activos") * 100`,
-    promedio_activos: `AVG("activos")`,
-    total_cuentas: `COUNT("activos") + COUNT("pasivos")`,
-    activo_maximo: `MAX("activos")`,
-    roi: `(SUM("ingresos") - SUM("gastos")) / SUM("activos") * 100`,
-    debt_ratio: `SUM("pasivos") / SUM("activos")`,
-    profit_margin: `(SUM("ingresos") - SUM("gastos")) / SUM("ingresos") * 100`,
-    complex_formula: `(SUM("activos") * 1.2) - (SUM("pasivos") * 0.8) + (SUM("ingresos") - SUM("gastos")) / 2`
-};
-
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const startYear = parseInt(searchParams.get('startYear') || '2022');
-        const endYear = parseInt(searchParams.get('endYear') || '2029');
-        const formula = searchParams.get('formula') || `SUM("activos") - SUM("pasivos")`;
+        const startYear = parseInt(searchParams.get('startYear') || '2024');
+        const endYear = parseInt(searchParams.get('endYear') || '2027');
+        const formulaName = searchParams.get('formula') || 'utilidad_basica';
 
-        // Evaluate formula for each year using Math.js
+        // OPTIMIZED: Only 2 database calls total + smart filtering
+        // 1. Get formula from database (case insensitive)
+        const formula = await getFormulaFromDB(formulaName);
+
+        // 2. Parse formula to determine which account types we need
+        const neededCodes = parseParentCodesFromFormula(formula);
+
+        // 3. Get only the financial data we actually need
+        const allFinancialData = await getFinancialDataOptimized(startYear, endYear, neededCodes);
+
+        // Evaluate formula for each year using the cached data
         const results: { [year: number]: number } = {};
         for (let year = startYear; year <= endYear; year++) {
-            results[year] = evaluateDatabaseFormula(cuentas, year, formula);
+            results[year] = await evaluateDatabaseFormula(allFinancialData, year, formula);
         }
 
         // Prepare response
@@ -151,8 +177,11 @@ export async function GET(request: Request) {
         const values = Object.values(results);
         const total = values.reduce((sum, value) => sum + value, 0);
 
-        console.log('Math.js formula:', formula);
+        console.log('Database formula:', formula);
         console.log('Results by year:', results);
+
+        // Account types used are already the names
+        const parentCodesUsed = neededCodes;
 
         return NextResponse.json({
             success: true,
@@ -161,16 +190,17 @@ export async function GET(request: Request) {
                 values: values,
                 result: total,
                 formula: formula,
-                method: 'mathjs_database_formula',
+                method: 'mathjs_database_formula_optimized',
                 available_functions: ['SUM', 'COUNT', 'AVG', 'MAX', 'MIN'],
-                example_formulas: databaseFormulas
+                formula_name: formulaName,
+                parent_codes_used: parentCodesUsed
             }
         });
     } catch (error) {
         console.error('API Error:', error);
         return NextResponse.json({
             success: false,
-            error: 'Failed to evaluate Math.js formula'
+            error: 'Failed to evaluate Math.js formula with database data'
         }, { status: 500 });
     }
 } 

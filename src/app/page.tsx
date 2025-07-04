@@ -25,8 +25,8 @@ const mockFinancialData = {
 // Additional sample data for variety - DEFAULT FALLBACK
 const mockData2Default = {
   dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
-  values: [120000, 135000, 150000, 165000, 180000, 195000, 210000, 225000],
-  result: 18250
+  values: ["cargando", "cargando", "cargando", "cargando", "cargando", "cargando", "cargando", "cargando"],
+  result: "cargando"
 };
 
 const mockData3 = {
