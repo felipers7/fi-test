@@ -5,6 +5,9 @@ interface FinancialData {
   dates: string[];
   values: number[];
   result: number;
+  // Optional projected values for second row
+  projectedValues?: number[];
+  projectedResult?: number;
 }
 
 interface FinancialCardProps {
@@ -13,10 +16,10 @@ interface FinancialCardProps {
   globalSelectedYears: string[];
 }
 
-export const FinancialCard: React.FC<FinancialCardProps> = ({ 
-  title, 
-  data, 
-  globalSelectedYears 
+export const FinancialCard: React.FC<FinancialCardProps> = ({
+  title,
+  data,
+  globalSelectedYears
 }) => {
   // Filter data based on selected years
   const filteredData = data.dates
@@ -37,6 +40,24 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
     return baseValues.map(value => Math.round(value * multiplier));
   };
 
+  // Get second row data - use projected values if available, otherwise apply multiplier
+  const getSecondRowData = () => {
+    if (data.projectedValues) {
+      // Use projected values filtered by selected years
+      return data.projectedValues
+        .map((value, index) => ({
+          value,
+          date: data.dates[index]
+        }))
+        .filter(item => globalSelectedYears.includes(item.date))
+        .sort((a, b) => parseInt(a.date) - parseInt(b.date))
+        .map(item => item.value);
+    } else {
+      // Fallback to generated row data with multiplier
+      return generateRowData(filteredData.map(item => item.value), 1.1);
+    }
+  };
+
   // Function to format the year display in the selector
   const formatYearDisplay = (years: string[]): string => {
     if (years.length === 0) return '2022-2027';
@@ -45,18 +66,18 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
   };
 
   return (
-    <div 
+    <div
       className="financial-card relative rounded-[18.9259px]"
       style={{ minWidth: '370px', width: '370px' }}
     >
       <div className="min-w-inherit relative size-full">
         <div className="box-border content-stretch flex flex-col gap-[9px] items-start justify-start min-w-inherit overflow-clip p-[12px] relative size-full">
-          
+
           {/* Header Frame - EXACTO DEL CAJA FINAL */}
           <div className="min-w-[370px] relative shrink-0 w-full">
             <div className="flex flex-row items-center justify-center min-w-inherit overflow-clip relative size-full">
               <div className="box-border content-stretch flex flex-row gap-3 items-center justify-center min-w-inherit p-[6px] relative w-full">
-                
+
                 {/* Título */}
                 <div className="basis-0 grow min-h-px min-w-px relative shrink-0">
                   <div className="box-border content-stretch flex flex-row gap-3 items-center justify-start p-0 relative w-full">
@@ -65,7 +86,7 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Selector de años - ADAPTABLE */}
                 <div className="financial-card-select h-10 min-w-[100px] relative rounded-lg shrink-0">
                   <div className="absolute financial-card-select-border border border-solid inset-[-0.5px] pointer-events-none rounded-[8.5px]" />
@@ -76,7 +97,7 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
                           {formatYearDisplay(globalSelectedYears)}
                         </p>
                       </div>
-                      
+
                       {/* Chevron Down */}
                       <div className="relative shrink-0 size-4">
                         <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 16 16">
@@ -94,9 +115,9 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Drag Gripper - ADAPTABLE CON TOOLTIP */}
-                <div 
+                <div
                   className="relative shrink-0 size-6 drag-handle group cursor-move"
                   title="Arrastra para reordenar"
                   aria-label="Mover tarjeta"
@@ -111,7 +132,7 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
                       />
                     </g>
                   </svg>
-                  
+
                   {/* Tooltip para mostrar funcionalidad */}
                   <div className="absolute -top-8 -left-12 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                     Arrastra aquí
@@ -158,7 +179,7 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
             <div className="absolute border-[0px_0px_0.8px] border-dashed financial-card-border-dashed inset-0 pointer-events-none" />
             <div className="flex flex-row items-center relative size-full">
               <div className="box-border content-stretch flex flex-row h-[34.111px] items-center justify-start pb-2 pt-0 px-0 relative w-full">
-                
+
                 {/* Primera cantidad */}
                 <div className="basis-0 grow h-full min-h-px min-w-px relative shrink-0">
                   <div className="flex flex-row items-center justify-center relative size-full">
@@ -203,13 +224,13 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
             </div>
           </div>
 
-          {/* Segunda Fila de Cantidades - REPITIENDO EL PATRÓN */}
+          {/* Segunda Fila de Cantidades - BASE o PROYECTADA */}
           <div className="h-[34.111px] relative shrink-0 w-full">
             <div className="absolute border-[0px_0px_0.8px] border-dashed financial-card-border-dashed inset-0 pointer-events-none" />
             <div className="flex flex-row items-center relative size-full">
               <div className="box-border content-stretch flex flex-row h-[34.111px] items-center justify-start pb-2 pt-0 px-0 relative w-full">
-                
-                {generateRowData(filteredData.map(item => item.value), 1.1).map((value, index) => (
+
+                {getSecondRowData().map((value, index) => (
                   <div key={`row2-${index}`} className={`basis-0 ${index === 0 ? '' : 'financial-card-transparent-bg'} grow h-full min-h-px min-w-px relative shrink-0`}>
                     <div className="flex flex-row items-center justify-center relative size-full">
                       <div className={`box-border content-stretch flex flex-row gap-2.5 items-center justify-center ${index < 2 ? 'px-0 py-1' : 'p-[4px]'} relative size-full`}>
@@ -225,7 +246,7 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
           </div>
         </div>
       </div>
-      
+
       {/* Border y shadow ADAPTATIVOS */}
       <div className="absolute financial-card-outer-border border border-solid inset-0 pointer-events-none rounded-[18.9259px] financial-card-shadow" />
     </div>

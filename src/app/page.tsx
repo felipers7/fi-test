@@ -408,36 +408,31 @@ export default function App() {
     const multiplier = 1 + (financialParameters.utilidad.crecimiento / 100);
     const growthFactor = financialParameters.crecimientosVenta.porcentaje / 100;
 
-    // For utilidad data (mockData2), apply projections only to years with specific parameters
+    // For utilidad data (mockData2), provide both BASE and PROJECTED values
     if (originalData === mockData2 && globalParameters.utilidad.values && Object.keys(globalParameters.utilidad.values).length > 0) {
+      // Calculate projected values for second row
+      const projectedValues = originalData.values.map((value: any, index: number) => {
+        const year = originalData.dates[index];
+        // Show loading state
+        if (typeof value === 'string' && value === 'cargando') {
+          return 'cargando';
+        }
+        // Use projected values for second row
+        return evaluateProjection(year) || globalParameters.utilidad.values[year] || value;
+      });
+
+      const projectedResult = Object.keys(globalParameters.utilidad.values).reduce((sum, year) => {
+        return sum + evaluateProjection(year);
+      }, 0);
+
       return {
         ...originalData,
-        values: originalData.values.map((value: any, index: number) => {
-          const year = originalData.dates[index];
-          // Show loading state
-          if (typeof value === 'string' && value === 'cargando') {
-            return 'cargando';
-          }
-
-          // Only apply projection if this year has a specific parameter
-          // Otherwise, use BASE value (no projection)
-          const hasParameter = globalParameters.utilidad.proyecciones[year];
-          if (hasParameter) {
-            // This year has a parameter, so use projection
-            return evaluateProjection(year) || globalParameters.utilidad.values[year] || value;
-          } else {
-            // This year has NO parameter, so use BASE value only
-            return globalParameters.utilidad.values[year] || value;
-          }
-        }),
-        result: Object.keys(globalParameters.utilidad.values).reduce((sum, year) => {
-          const hasParameter = globalParameters.utilidad.proyecciones[year];
-          if (hasParameter) {
-            return sum + evaluateProjection(year);
-          } else {
-            return sum + (globalParameters.utilidad.values[year] || 0);
-          }
-        }, 0)
+        // First row: BASE values (unchanged)
+        values: originalData.values,
+        result: originalData.result,
+        // Second row: PROJECTED values  
+        projectedValues: projectedValues,
+        projectedResult: projectedResult
       };
     }
 
