@@ -7,6 +7,10 @@ interface SidebarProps {
   onParameterChange: (section: string, parameter: string, value: string | number) => void;
   selectedYears: string[];
   isDarkMode?: boolean;
+  globalParameters?: any;
+  projectionFormulas?: { [year: string]: string };
+  isLoadingGlobalParametros?: boolean;
+  isLoadingFormulas?: boolean;
 }
 
 interface EditableFieldProps {
@@ -79,7 +83,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggle,
   onParameterChange,
   selectedYears,
-  isDarkMode = false
+  isDarkMode = false,
+  globalParameters,
+  projectionFormulas = {},
+  isLoadingGlobalParametros = false,
+  isLoadingFormulas = false
 }) => {
   // Estados para las secciones colapsables
   const [sectionStates, setSectionStates] = useState({
@@ -91,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     factoresFinancieros: false
   });
 
-  // Estados para los valores editables - now will be populated from APIs
+  // Local states for Sidebar - keep this simple and working
   const [parameters, setParameters] = useState({
     utilidad: {
       values: {} as { [year: string]: number },
@@ -108,38 +116,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     vidaUtilActivos: {
       valor: "10 años"
-    },
-    estacionalidad: {
-      2023: { q1: 63163, q2: 80535, q3: 134500, proj1: 10, proj2: 30 },
-      2024: { q1: 63163, q2: 80535, q3: 134500, proj1: 20, proj2: 10, proj3: 30 },
-      2025: { q1: 63163, q2: 80535, q3: 134500, proj1: 20, proj2: 10, proj3: 30 },
-      2026: { q1: 63163, q2: 80535, q3: 134500, proj1: 20, proj2: 10, proj3: 30 },
-      2027: { q1: 63163, q2: 80535, q3: 134500, proj1: 20, proj2: 10, proj3: 30 },
-      2028: { q1: 63163, q2: 80535, q3: 134500, proj1: 20, proj2: 10, proj3: 30 },
-      2029: { q1: 63163, q2: 80535, q3: 134500, proj1: 20, proj2: 10, proj3: 30 }
     }
   });
 
-  // Loading states
+  // Local loading states  
   const [isLoadingUtilidad, setIsLoadingUtilidad] = useState(true);
-  const [isLoadingParametros, setIsLoadingParametros] = useState(true);
-  const [isLoadingFormulas, setIsLoadingFormulas] = useState(true);
 
-  // Projection formulas state
-  const [projectionFormulas, setProjectionFormulas] = useState<{ [year: string]: string }>({});
-
-  // Fetch utilidad data from API
-  const fetchUtilidadData = useCallback(async () => {
+  // Local API fetching to populate Sidebar values independently
+  const fetchUtilidadData = async () => {
     try {
       setIsLoadingUtilidad(true);
       const response = await fetch('/api/utilidad?startYear=2022&endYear=2029&formula=utilidad_basica');
-
       if (response.ok) {
         const result = await response.json();
         if (result.success && result.data) {
           const { dates, values, result: totalResult } = result.data;
-
-          // Convert arrays to object with year keys
           const valuesByYear: { [year: string]: number } = {};
           dates.forEach((year: string, index: number) => {
             valuesByYear[year] = values[index];
@@ -156,23 +147,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }
       }
     } catch (error) {
-      console.error('Failed to fetch utilidad data:', error);
+      console.error('Sidebar: Failed to fetch utilidad data:', error);
     } finally {
       setIsLoadingUtilidad(false);
     }
-  }, []);
+  };
 
-  // Fetch projection parameters from API
-  const fetchParametros = useCallback(async () => {
+  const fetchParametros = async () => {
     try {
-      setIsLoadingParametros(true);
       const response = await fetch('/api/parametros?prmt_codigo=PROY_UTIL');
-
       if (response.ok) {
         const result = await response.json();
         if (result.success && result.data && result.data.parametros) {
           const proyecciones: { [year: string]: number } = {};
-
           result.data.parametros.forEach((param: any) => {
             if (param.prmt_ano) {
               proyecciones[param.prmt_ano.toString()] = param.prmt_valor;
@@ -189,37 +176,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }
       }
     } catch (error) {
-      console.error('Failed to fetch parametros data:', error);
-    } finally {
-      setIsLoadingParametros(false);
+      console.error('Sidebar: Failed to fetch parametros:', error);
     }
-  }, []);
+  };
 
-  // Fetch projection formulas from API
-  const fetchProjectionFormulas = useCallback(async () => {
-    try {
-      setIsLoadingFormulas(true);
-      const response = await fetch('/api/formulas?fmls_desc=utilidad_basica_proyeccion');
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.data && result.data.formulas) {
-          const formulas: { [year: string]: string } = {};
-
-          result.data.formulas.forEach((formula: any) => {
-            if (formula.fmls_ano) {
-              formulas[formula.fmls_ano.toString()] = formula.fmls_body;
-            }
-          });
-
-          setProjectionFormulas(formulas);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch projection formulas:', error);
-    } finally {
-      setIsLoadingFormulas(false);
-    }
+  // Fetch data on mount
+  useEffect(() => {
+    fetchUtilidadData();
+    fetchParametros();
   }, []);
 
   // Helper function to get latest available value when year not found
@@ -240,13 +204,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const evaluateProjection = useCallback((year: string): number => {
     const baseValue = getBaseValue(year);
 
-    // Use fallback logic for parameters and formulas
-    const paramValue = (parameters.utilidad.proyecciones[year] ||
-      getLatestAvailable(parameters.utilidad.proyecciones, year) || 10) / 100;
+    // Each year uses only its specific parameter, but formula can use fallback
+    const paramValue = parameters.utilidad.proyecciones[year];
     const formula = projectionFormulas[year] ||
-      getLatestAvailable(projectionFormulas, year);
+      getLatestAvailable(projectionFormulas, year) ||
+      "utilidad_basica * param"; // default formula if none found
 
-    if (!formula || baseValue === 0) {
+    // If no specific parameter for this year, return base value (no projection)
+    if (!paramValue || baseValue === 0) {
       return baseValue;
     }
 
@@ -254,24 +219,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
       // Simple evaluation by replacing keywords
       let evaluatedFormula = formula
         .replace(/utilidad_basica/g, baseValue.toString())
-        .replace(/param/g, paramValue.toString());
+        .replace(/param/g, (paramValue / 100).toString());
 
       // Use eval for simple mathematical expressions (be careful with this in production)
       const result = eval(evaluatedFormula);
-      console.log(`Projection Year ${year}: ${formula} -> ${evaluatedFormula} = ${result}`);
+      console.log(`Sidebar Projection Year ${year}: ${formula} -> ${evaluatedFormula} = ${result}`);
       return Math.round(result);
     } catch (error) {
-      console.error('Formula evaluation error:', error);
+      console.error('Sidebar formula evaluation error:', error);
       return baseValue;
     }
   }, [getBaseValue, parameters.utilidad.proyecciones, projectionFormulas, getLatestAvailable]);
 
-  // Fetch data on component mount
-  useEffect(() => {
-    fetchUtilidadData();
-    fetchParametros();
-    fetchProjectionFormulas();
-  }, [fetchUtilidadData, fetchParametros, fetchProjectionFormulas]);
+  // No need to fetch data - using global parameters from props
 
   // Force re-render when projection parameters change (for real-time updates)
   const [updateTrigger, setUpdateTrigger] = useState(0);
@@ -279,7 +239,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   useEffect(() => {
     // Force re-computation when projection parameters change
     setUpdateTrigger(prev => prev + 1);
-    console.log('Projection parameters changed, triggering update');
+    console.log('Local projection parameters changed, triggering sidebar update');
   }, [parameters.utilidad.proyecciones]);
 
   // COMPUTED: Filtrar años y datos basados en selectedYears
@@ -318,36 +278,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleParameterChange = useCallback((section: string, parameter: string, value: string) => {
-    console.log(`Parameter change: ${section}.${parameter} = ${value}`);
+    console.log(`Sidebar parameter change: ${section}.${parameter} = ${value}`);
 
-    setParameters(prev => {
-      if (section === 'utilidad' && parameter.startsWith('proy')) {
-        // Extract year from parameter like 'proy2025'
-        const year = parameter.replace('proy', '');
-        const newProjections = {
-          ...prev.utilidad.proyecciones,
-          [year]: parseFloat(value) || 10
-        };
+    // Update local state for real-time Sidebar updates
+    if (section === 'utilidad' && parameter.includes('proy')) {
+      const year = parameter.replace('proy', '');
+      const numValue = parseFloat(value) || 10;
 
-        console.log('Updated proyecciones:', newProjections);
-
-        return {
-          ...prev,
-          utilidad: {
-            ...prev.utilidad,
-            proyecciones: newProjections
+      setParameters(prev => ({
+        ...prev,
+        utilidad: {
+          ...prev.utilidad,
+          proyecciones: {
+            ...prev.utilidad.proyecciones,
+            [year]: numValue
           }
-        };
-      } else {
-        return {
-          ...prev,
-          [section]: {
-            ...prev[section as keyof typeof prev],
-            [parameter]: parseFloat(value) || value
-          }
-        };
-      }
-    });
+        }
+      }));
+    }
+
+    // Also notify parent component for main page updates
     onParameterChange(section, parameter, value);
   }, [onParameterChange]);
 
@@ -473,7 +423,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <div className="text-center">
                         <span className={`text-2xl font-bold ${isDarkMode ? 'text-[#ff2e2e]' : 'text-[#b00020]'
                           }`}>
-                          BASE: {isLoadingUtilidad ? 'Cargando...' : parameters.utilidad.result.toLocaleString()}
+                          BASE: {isLoadingUtilidad ? 'Cargando...' : (parameters.utilidad.result || 0).toLocaleString()}
                         </span>
                       </div>
                       <div className="text-center mt-2">
@@ -544,7 +494,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         )}
 
                         {/* Campos editables para años futuros */}
-                        {isLoadingParametros ? (
+                        {isLoadingGlobalParametros ? (
                           <div className="flex gap-3">
                             {getProjectionFields.map(year => (
                               <div key={`loading-${year}`} className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
@@ -554,7 +504,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           getProjectionFields.map(year => (
                             <EditableField
                               key={`proy-${year}`}
-                              value={parameters.utilidad.proyecciones[year] || 10}
+                              value={globalParameters?.utilidad.proyecciones[year] || 10}
                               onChange={(value) => handleParameterChange('utilidad', `proy${year}`, value)}
                               type="percentage"
                               isDarkMode={isDarkMode}

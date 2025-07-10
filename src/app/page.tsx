@@ -120,6 +120,33 @@ export default function App() {
   const [utilidadData, setUtilidadData] = useState<any>(null);
   const [isLoadingUtilidad, setIsLoadingUtilidad] = useState(true);
 
+  // Global parameter states (shared between Sidebar and main page)
+  const [globalParameters, setGlobalParameters] = useState({
+    utilidad: {
+      values: {} as { [year: string]: number },
+      result: 0,
+      proyecciones: {} as { [year: string]: number }
+    },
+    crecimientosVenta: {
+      values: {} as { [year: string]: number },
+      proyeccion: 10
+    },
+    inversiones: {
+      values: {} as { [year: string]: number },
+      proyeccion: 10
+    },
+    vidaUtilActivos: {
+      valor: "10 años"
+    }
+  });
+
+  // Loading states for global parameters
+  const [isLoadingGlobalParametros, setIsLoadingGlobalParametros] = useState(true);
+  const [isLoadingFormulas, setIsLoadingFormulas] = useState(true);
+
+  // Projection formulas state
+  const [projectionFormulas, setProjectionFormulas] = useState<{ [year: string]: string }>({});
+
   // Dynamic mockData2 that gets replaced by API data
   const mockData2 = useMemo(() => {
     return utilidadData || mockData2Default;
@@ -138,10 +165,8 @@ export default function App() {
       setIsLoadingUtilidad(true);
 
       // Add cache busting and no-cache headers
-      const response = await fetch('/api/utilidad', {
+      const response = await fetch('/api/utilidad?startYear=2022&endYear=2029&formula=utilidad_basica', {
         method: 'GET',
-
-        // Add timestamp to prevent caching
         cache: 'no-store'
       });
       console.log('Response status:', response.status);
@@ -152,23 +177,36 @@ export default function App() {
 
         if (result.success && result.data) {
           console.log("Setting utilidad data:", result.data);
-          // Ensure we're setting fresh data
+          // Set the display data
           setUtilidadData({ ...result.data });
+
+          // Also populate global parameters
+          const { dates, values, result: totalResult } = result.data;
+          const valuesByYear: { [year: string]: number } = {};
+          dates.forEach((year: string, index: number) => {
+            valuesByYear[year] = values[index];
+          });
+
+          setGlobalParameters(prev => ({
+            ...prev,
+            utilidad: {
+              ...prev.utilidad,
+              values: valuesByYear,
+              result: totalResult
+            }
+          }));
         } else {
           console.error('API returned unsuccessful response:', result);
-          // Fallback to default data if API fails
           setUtilidadData(mockData2Default);
         }
       } else {
         console.error('Response not ok:', response.status, response.statusText);
         const errorText = await response.text();
         console.error('Error response body:', errorText);
-        // Fallback to default data if API fails
         setUtilidadData(mockData2Default);
       }
     } catch (error) {
       console.error('Failed to fetch utilidad data:', error);
-      // Fallback to default data if network error
       setUtilidadData(mockData2Default);
     } finally {
       setIsLoadingUtilidad(false);
@@ -176,11 +214,73 @@ export default function App() {
     }
   };
 
+  // Fetch projection parameters from API
+  const fetchGlobalParametros = useCallback(async () => {
+    try {
+      setIsLoadingGlobalParametros(true);
+      const response = await fetch('/api/parametros?prmt_codigo=PROY_UTIL');
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data && result.data.parametros) {
+          const proyecciones: { [year: string]: number } = {};
+
+          result.data.parametros.forEach((param: any) => {
+            if (param.prmt_ano) {
+              proyecciones[param.prmt_ano.toString()] = param.prmt_valor;
+            }
+          });
+
+          setGlobalParameters(prev => ({
+            ...prev,
+            utilidad: {
+              ...prev.utilidad,
+              proyecciones: proyecciones
+            }
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch global parametros data:', error);
+    } finally {
+      setIsLoadingGlobalParametros(false);
+    }
+  }, []);
+
+  // Fetch projection formulas from API
+  const fetchProjectionFormulas = useCallback(async () => {
+    try {
+      setIsLoadingFormulas(true);
+      const response = await fetch('/api/formulas?fmls_desc=utilidad_basica_proyeccion');
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data && result.data.formulas) {
+          const formulas: { [year: string]: string } = {};
+
+          result.data.formulas.forEach((formula: any) => {
+            if (formula.fmls_ano) {
+              formulas[formula.fmls_ano.toString()] = formula.fmls_body;
+            }
+          });
+
+          setProjectionFormulas(formulas);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch projection formulas:', error);
+    } finally {
+      setIsLoadingFormulas(false);
+    }
+  }, []);
+
 
   // Fetch utilidad data on mount
   useEffect(() => {
     fetchUtilidadData();
-  }, []);
+    fetchGlobalParametros();
+    fetchProjectionFormulas();
+  }, [fetchGlobalParametros, fetchProjectionFormulas]);
 
   // Estados principales
   const [sectionStates, setSectionStates] = useState({
@@ -259,27 +359,89 @@ export default function App() {
     return Math.round(baseValue * (1 + yearMultiplier + futureYearsBonus));
   }, []);
 
+  // Helper function to get latest available value when year not found
+  const getLatestAvailable = useCallback((obj: { [key: string]: any }, targetYear: string): any => {
+    if (obj[targetYear]) return obj[targetYear];
+
+    // Get all available years, sort them, and find the latest one that's <= targetYear
+    const availableYears = Object.keys(obj).sort((a, b) => parseInt(b) - parseInt(a));
+    return obj[availableYears[0]] || null;
+  }, []);
+
+  // Function to get base value (just utilidad_basica, no additional formula)
+  const getBaseValue = useCallback((year: string): number => {
+    return globalParameters.utilidad.values[year] || 0;
+  }, [globalParameters.utilidad.values]);
+
+  // Function to evaluate projection formula (utilidad_basica * param)
+  const evaluateProjection = useCallback((year: string): number => {
+    const baseValue = getBaseValue(year);
+
+    // Each year uses only its specific parameter, but formula can use fallback
+    const paramValue = globalParameters.utilidad.proyecciones[year];
+    const formula = projectionFormulas[year] ||
+      getLatestAvailable(projectionFormulas, year) ||
+      "utilidad_basica * param"; // default formula if none found
+
+    // If no specific parameter for this year, return base value (no projection)
+    if (!paramValue || baseValue === 0) {
+      return baseValue;
+    }
+
+    try {
+      // Simple evaluation by replacing keywords
+      let evaluatedFormula = formula
+        .replace(/utilidad_basica/g, baseValue.toString())
+        .replace(/param/g, (paramValue / 100).toString());
+
+      // Use eval for simple mathematical expressions
+      const result = eval(evaluatedFormula);
+      return Math.round(result);
+    } catch (error) {
+      console.error('Main page formula evaluation error:', error);
+      return baseValue;
+    }
+  }, [getBaseValue, globalParameters.utilidad.proyecciones, projectionFormulas, getLatestAvailable]);
+
   // Función para aplicar parámetros a los datos
   const applyParametersToData = useCallback((originalData: any) => {
     const multiplier = 1 + (financialParameters.utilidad.crecimiento / 100);
     const growthFactor = financialParameters.crecimientosVenta.porcentaje / 100;
 
-    // If this is utilidad data and we have projected values, use them
-    if (originalData === mockData2 && utilidadData && utilidadData.values) {
+    // For utilidad data (mockData2), apply projections only to years with specific parameters
+    if (originalData === mockData2 && globalParameters.utilidad.values && Object.keys(globalParameters.utilidad.values).length > 0) {
       return {
         ...originalData,
         values: originalData.values.map((value: any, index: number) => {
           const year = originalData.dates[index];
-          // Use projected value if available, otherwise use base value with parameters
+          // Show loading state
           if (typeof value === 'string' && value === 'cargando') {
             return 'cargando';
           }
-          return utilidadData.values[index] || value;
+
+          // Only apply projection if this year has a specific parameter
+          // Otherwise, use BASE value (no projection)
+          const hasParameter = globalParameters.utilidad.proyecciones[year];
+          if (hasParameter) {
+            // This year has a parameter, so use projection
+            return evaluateProjection(year) || globalParameters.utilidad.values[year] || value;
+          } else {
+            // This year has NO parameter, so use BASE value only
+            return globalParameters.utilidad.values[year] || value;
+          }
         }),
-        result: utilidadData.result || originalData.result
+        result: Object.keys(globalParameters.utilidad.values).reduce((sum, year) => {
+          const hasParameter = globalParameters.utilidad.proyecciones[year];
+          if (hasParameter) {
+            return sum + evaluateProjection(year);
+          } else {
+            return sum + (globalParameters.utilidad.values[year] || 0);
+          }
+        }, 0)
       };
     }
 
+    // Apply parameters to other financial data (not utilidad)
     return {
       ...originalData,
       values: originalData.values.map((value: number, index: number) => {
@@ -291,7 +453,7 @@ export default function App() {
       }),
       result: Math.round(originalData.result * multiplier)
     };
-  }, [financialParameters, utilidadData]);
+  }, [financialParameters, globalParameters.utilidad.values, evaluateProjection]);
 
   // Function to get titles for cards
   const getTitleForCard = useCallback((keyPrefix: string, index: number): string => {
@@ -481,18 +643,29 @@ export default function App() {
   }, []);
 
   const handleParameterChange = useCallback((section: string, parameter: string, value: string | number) => {
-    console.log(`Parameter changed: ${section}.${parameter} = ${value}`);
+    console.log(`Global parameter changed: ${section}.${parameter} = ${value}`);
 
-    // Actualizar parámetros financieros según la sección
+    // Handle utilidad projection parameters
     if (section === 'utilidad' && parameter.includes('proy')) {
-      setFinancialParameters(prev => ({
+      // Extract year from parameter like 'proy2025'
+      const year = parameter.replace('proy', '');
+      const newProjections = {
+        ...globalParameters.utilidad.proyecciones,
+        [year]: typeof value === 'string' ? parseFloat(value) || 10 : value
+      };
+
+      console.log('Updated global proyecciones:', newProjections);
+
+      setGlobalParameters(prev => ({
         ...prev,
         utilidad: {
           ...prev.utilidad,
-          crecimiento: Number(value)
+          proyecciones: newProjections
         }
       }));
-    } else if (section === 'crecimientosVenta') {
+    }
+    // Handle other financial parameters (keep existing functionality)
+    else if (section === 'crecimientosVenta') {
       setFinancialParameters(prev => ({
         ...prev,
         crecimientosVenta: {
@@ -507,7 +680,7 @@ export default function App() {
         }
       }));
     }
-  }, []);
+  }, [globalParameters.utilidad.proyecciones]);
 
   // HANDLER ACTUALIZADO para manejar el cambio de años globales
   const handleGlobalYearsChange = useCallback((years: string[]) => {
@@ -629,6 +802,8 @@ export default function App() {
     console.log('Cards reordered in Rentabilidad del Patrimonio section');
   }, []);
 
+
+
   // Calcular valor de empresa dinámicamente
   const companyValue = useMemo(() => calculateCompanyValue(globalSelectedYears), [calculateCompanyValue, globalSelectedYears]);
 
@@ -691,6 +866,10 @@ export default function App() {
                   onParameterChange={handleParameterChange}
                   selectedYears={globalSelectedYears}
                   isDarkMode={isDarkMode}
+                  globalParameters={globalParameters}
+                  projectionFormulas={projectionFormulas}
+                  isLoadingGlobalParametros={isLoadingGlobalParametros}
+                  isLoadingFormulas={isLoadingFormulas}
                 />
               </div>
             </div>
