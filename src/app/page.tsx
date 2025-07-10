@@ -264,9 +264,26 @@ export default function App() {
     const multiplier = 1 + (financialParameters.utilidad.crecimiento / 100);
     const growthFactor = financialParameters.crecimientosVenta.porcentaje / 100;
 
+    // If this is utilidad data and we have projected values, use them
+    if (originalData === mockData2 && utilidadData && utilidadData.values) {
+      return {
+        ...originalData,
+        values: originalData.values.map((value: any, index: number) => {
+          const year = originalData.dates[index];
+          // Use projected value if available, otherwise use base value with parameters
+          if (typeof value === 'string' && value === 'cargando') {
+            return 'cargando';
+          }
+          return utilidadData.values[index] || value;
+        }),
+        result: utilidadData.result || originalData.result
+      };
+    }
+
     return {
       ...originalData,
       values: originalData.values.map((value: number, index: number) => {
+        if (typeof value === 'string') return value;
         // Aplicar crecimiento progresivo según los parámetros
         const year = parseInt(originalData.dates[index]);
         const yearGrowth = year > 2025 ? growthFactor : 0; // Solo aplicar a años futuros
@@ -274,7 +291,7 @@ export default function App() {
       }),
       result: Math.round(originalData.result * multiplier)
     };
-  }, [financialParameters]);
+  }, [financialParameters, utilidadData]);
 
   // Function to get titles for cards
   const getTitleForCard = useCallback((keyPrefix: string, index: number): string => {

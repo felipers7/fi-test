@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import svgPaths from "../imports/svg-tlrzm2wqv9";
 
 interface SidebarProps {
@@ -17,9 +17,9 @@ interface EditableFieldProps {
   isDarkMode?: boolean;
 }
 
-const EditableField: React.FC<EditableFieldProps> = ({ 
-  value, 
-  onChange, 
+const EditableField: React.FC<EditableFieldProps> = ({
+  value,
+  onChange,
   type = 'text',
   placeholder = '',
   isDarkMode = false
@@ -49,11 +49,10 @@ const EditableField: React.FC<EditableFieldProps> = ({
         onChange={(e) => setTempValue(e.target.value)}
         onBlur={handleSubmit}
         onKeyDown={handleKeyDown}
-        className={`border rounded-lg h-8 px-3 py-2 text-sm w-16 focus:outline-none focus:ring-2 focus:ring-opacity-50 ${
-          isDarkMode 
-            ? 'bg-neutral-800 border-[#3ABE76] text-[#3ABE76] focus:ring-[#3ABE76]'
-            : 'bg-neutral-50 border-[#1a6e31] text-[#1a6e31] focus:ring-[#1a6e31]'
-        }`}
+        className={`border rounded-lg h-8 px-3 py-2 text-sm w-16 focus:outline-none focus:ring-2 focus:ring-opacity-50 ${isDarkMode
+          ? 'bg-neutral-800 border-[#3ABE76] text-[#3ABE76] focus:ring-[#3ABE76]'
+          : 'bg-neutral-50 border-[#1a6e31] text-[#1a6e31] focus:ring-[#1a6e31]'
+          }`}
         placeholder={placeholder}
         autoFocus
       />
@@ -63,11 +62,10 @@ const EditableField: React.FC<EditableFieldProps> = ({
   return (
     <div
       onClick={() => setIsEditing(true)}
-      className={`border rounded-lg h-8 px-3 py-2 cursor-pointer hover:opacity-80 flex items-center justify-center transition-all min-w-[64px] ${
-        isDarkMode
-          ? 'bg-neutral-800 border-[#3ABE76]'
-          : 'bg-neutral-50 border-[#1a6e31] hover:bg-gray-50'
-      }`}
+      className={`border rounded-lg h-8 px-3 py-2 cursor-pointer hover:opacity-80 flex items-center justify-center transition-all min-w-[64px] ${isDarkMode
+        ? 'bg-neutral-800 border-[#3ABE76]'
+        : 'bg-neutral-50 border-[#1a6e31] hover:bg-gray-50'
+        }`}
     >
       <span className={`text-sm font-medium ${isDarkMode ? 'text-[#3ABE76]' : 'text-[#1a6e31]'}`}>
         {type === 'percentage' ? `${value}%` : value}
@@ -76,12 +74,12 @@ const EditableField: React.FC<EditableFieldProps> = ({
   );
 };
 
-export const Sidebar: React.FC<SidebarProps> = ({ 
-  isOpen, 
-  onToggle, 
-  onParameterChange, 
+export const Sidebar: React.FC<SidebarProps> = ({
+  isOpen,
+  onToggle,
+  onParameterChange,
   selectedYears,
-  isDarkMode = false 
+  isDarkMode = false
 }) => {
   // Estados para las secciones colapsables
   const [sectionStates, setSectionStates] = useState({
@@ -93,45 +91,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
     factoresFinancieros: false
   });
 
-  // Estados para los valores editables - EXTENDIDOS para incluir años 2028-2029
+  // Estados para los valores editables - now will be populated from APIs
   const [parameters, setParameters] = useState({
     utilidad: {
-      2022: 147950,
-      2023: 147950,
-      2024: 177540,
-      2025: 177540,
-      2026: 230802,
-      2027: 235000,
-      2028: 245000,
-      2029: 255000,
-      proyecciones: {
-        2025: 10,
-        2026: 10,
-        2027: 10,
-        2028: 10,
-        2029: 10
-      }
+      values: {} as { [year: string]: number },
+      result: 0,
+      proyecciones: {} as { [year: string]: number }
     },
     crecimientosVenta: {
-      2022: 147950,
-      2023: 147950,
-      2024: 177540,
-      2025: 177540,
-      2026: 230802,
-      2027: 235000,
-      2028: 245000,
-      2029: 255000,
+      values: {} as { [year: string]: number },
       proyeccion: 10
     },
     inversiones: {
-      2022: 147950,
-      2023: 147950,
-      2024: 177540,
-      2025: 177540,
-      2026: 230802,
-      2027: 235000,
-      2028: 245000,
-      2029: 255000,
+      values: {} as { [year: string]: number },
       proyeccion: 10
     },
     vidaUtilActivos: {
@@ -148,25 +120,189 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   });
 
+  // Loading states
+  const [isLoadingUtilidad, setIsLoadingUtilidad] = useState(true);
+  const [isLoadingParametros, setIsLoadingParametros] = useState(true);
+  const [isLoadingFormulas, setIsLoadingFormulas] = useState(true);
+
+  // Projection formulas state
+  const [projectionFormulas, setProjectionFormulas] = useState<{ [year: string]: string }>({});
+
+  // Fetch utilidad data from API
+  const fetchUtilidadData = useCallback(async () => {
+    try {
+      setIsLoadingUtilidad(true);
+      const response = await fetch('/api/utilidad?startYear=2022&endYear=2029&formula=utilidad_basica');
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          const { dates, values, result: totalResult } = result.data;
+
+          // Convert arrays to object with year keys
+          const valuesByYear: { [year: string]: number } = {};
+          dates.forEach((year: string, index: number) => {
+            valuesByYear[year] = values[index];
+          });
+
+          setParameters(prev => ({
+            ...prev,
+            utilidad: {
+              ...prev.utilidad,
+              values: valuesByYear,
+              result: totalResult
+            }
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch utilidad data:', error);
+    } finally {
+      setIsLoadingUtilidad(false);
+    }
+  }, []);
+
+  // Fetch projection parameters from API
+  const fetchParametros = useCallback(async () => {
+    try {
+      setIsLoadingParametros(true);
+      const response = await fetch('/api/parametros?prmt_codigo=PROY_UTIL');
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data && result.data.parametros) {
+          const proyecciones: { [year: string]: number } = {};
+
+          result.data.parametros.forEach((param: any) => {
+            if (param.prmt_ano) {
+              proyecciones[param.prmt_ano.toString()] = param.prmt_valor;
+            }
+          });
+
+          setParameters(prev => ({
+            ...prev,
+            utilidad: {
+              ...prev.utilidad,
+              proyecciones: proyecciones
+            }
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch parametros data:', error);
+    } finally {
+      setIsLoadingParametros(false);
+    }
+  }, []);
+
+  // Fetch projection formulas from API
+  const fetchProjectionFormulas = useCallback(async () => {
+    try {
+      setIsLoadingFormulas(true);
+      const response = await fetch('/api/formulas?fmls_desc=utilidad_basica_proyeccion');
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data && result.data.formulas) {
+          const formulas: { [year: string]: string } = {};
+
+          result.data.formulas.forEach((formula: any) => {
+            if (formula.fmls_ano) {
+              formulas[formula.fmls_ano.toString()] = formula.fmls_body;
+            }
+          });
+
+          setProjectionFormulas(formulas);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch projection formulas:', error);
+    } finally {
+      setIsLoadingFormulas(false);
+    }
+  }, []);
+
+  // Helper function to get latest available value when year not found
+  const getLatestAvailable = useCallback((obj: { [key: string]: any }, targetYear: string): any => {
+    if (obj[targetYear]) return obj[targetYear];
+
+    // Get all available years, sort them, and find the latest one that's <= targetYear
+    const availableYears = Object.keys(obj).sort((a, b) => parseInt(b) - parseInt(a));
+    return obj[availableYears[0]] || null;
+  }, []);
+
+  // Function to get base value (just utilidad_basica, no additional formula)
+  const getBaseValue = useCallback((year: string): number => {
+    return parameters.utilidad.values[year] || 0;
+  }, [parameters.utilidad.values]);
+
+  // Function to evaluate projection formula (utilidad_basica * param)
+  const evaluateProjection = useCallback((year: string): number => {
+    const baseValue = getBaseValue(year);
+
+    // Use fallback logic for parameters and formulas
+    const paramValue = (parameters.utilidad.proyecciones[year] ||
+      getLatestAvailable(parameters.utilidad.proyecciones, year) || 10) / 100;
+    const formula = projectionFormulas[year] ||
+      getLatestAvailable(projectionFormulas, year);
+
+    if (!formula || baseValue === 0) {
+      return baseValue;
+    }
+
+    try {
+      // Simple evaluation by replacing keywords
+      let evaluatedFormula = formula
+        .replace(/utilidad_basica/g, baseValue.toString())
+        .replace(/param/g, paramValue.toString());
+
+      // Use eval for simple mathematical expressions (be careful with this in production)
+      const result = eval(evaluatedFormula);
+      console.log(`Projection Year ${year}: ${formula} -> ${evaluatedFormula} = ${result}`);
+      return Math.round(result);
+    } catch (error) {
+      console.error('Formula evaluation error:', error);
+      return baseValue;
+    }
+  }, [getBaseValue, parameters.utilidad.proyecciones, projectionFormulas, getLatestAvailable]);
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchUtilidadData();
+    fetchParametros();
+    fetchProjectionFormulas();
+  }, [fetchUtilidadData, fetchParametros, fetchProjectionFormulas]);
+
+  // Force re-render when projection parameters change (for real-time updates)
+  const [updateTrigger, setUpdateTrigger] = useState(0);
+
+  useEffect(() => {
+    // Force re-computation when projection parameters change
+    setUpdateTrigger(prev => prev + 1);
+    console.log('Projection parameters changed, triggering update');
+  }, [parameters.utilidad.proyecciones]);
+
   // COMPUTED: Filtrar años y datos basados en selectedYears
   const filteredYearData = useMemo(() => {
     const sortedYears = [...selectedYears].sort();
+    console.log('Recomputing filteredYearData, updateTrigger:', updateTrigger);
     return {
       years: sortedYears,
       utilidadValues: sortedYears.map(year => ({
         year,
-        value: parameters.utilidad[year as keyof typeof parameters.utilidad] || 0
+        baseValue: getBaseValue(year), // BASE: Just the base value from utilidad API
+        projectedValue: evaluateProjection(year) // PROJECTED: Base value * param formula
       })),
       crecimientosValues: sortedYears.map(year => ({
         year,
-        value: parameters.crecimientosVenta[year as keyof typeof parameters.crecimientosVenta] || 0
+        value: parameters.crecimientosVenta.values[year] || 0
       })),
       inversionesValues: sortedYears.map(year => ({
         year,
-        value: parameters.inversiones[year as keyof typeof parameters.inversiones] || 0
+        value: parameters.inversiones.values[year] || 0
       }))
     };
-  }, [selectedYears, parameters]);
+  }, [selectedYears, parameters, getBaseValue, evaluateProjection, updateTrigger]);
 
   // COMPUTED: Obtener campos de proyección basados en años seleccionados
   const getProjectionFields = useMemo(() => {
@@ -182,26 +318,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleParameterChange = useCallback((section: string, parameter: string, value: string) => {
-    setParameters(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section as keyof typeof prev],
-        [parameter]: parseFloat(value) || value
+    console.log(`Parameter change: ${section}.${parameter} = ${value}`);
+
+    setParameters(prev => {
+      if (section === 'utilidad' && parameter.startsWith('proy')) {
+        // Extract year from parameter like 'proy2025'
+        const year = parameter.replace('proy', '');
+        const newProjections = {
+          ...prev.utilidad.proyecciones,
+          [year]: parseFloat(value) || 10
+        };
+
+        console.log('Updated proyecciones:', newProjections);
+
+        return {
+          ...prev,
+          utilidad: {
+            ...prev.utilidad,
+            proyecciones: newProjections
+          }
+        };
+      } else {
+        return {
+          ...prev,
+          [section]: {
+            ...prev[section as keyof typeof prev],
+            [parameter]: parseFloat(value) || value
+          }
+        };
       }
-    }));
+    });
     onParameterChange(section, parameter, value);
   }, [onParameterChange]);
 
   if (!isOpen) return null;
 
   return (
-    <div className={`relative rounded-2xl border shadow-[0px_16px_44px_0px_rgba(0,0,0,0.07)] w-[420px] h-full max-h-[calc(100vh-80px)] z-40 ${
-      isDarkMode 
-        ? 'bg-neutral-900 border-[#9e9e9e]'
-        : 'bg-white border-[#d0d5dd]'
-    }`} style={{ overflow: 'visible', position: 'relative' }}>
+    <div className={`relative rounded-2xl border shadow-[0px_16px_44px_0px_rgba(0,0,0,0.07)] w-[420px] h-full max-h-[calc(100vh-80px)] z-40 ${isDarkMode
+      ? 'bg-neutral-900 border-[#9e9e9e]'
+      : 'bg-white border-[#d0d5dd]'
+      }`} style={{ overflow: 'visible', position: 'relative' }}>
       <div className="flex flex-col h-full">
-        
+
         {/* Header con botón de colapso */}
         <div className={`relative p-6 border-b ${isDarkMode ? 'border-[#9e9e9e]' : 'border-[#d0d5dd]'}`} style={{ overflow: 'visible' }}>
           <button
@@ -232,9 +390,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </svg>
             </div>
             <div className="flex items-center gap-2">
-              <span className={`font-medium text-base ${
-                isDarkMode ? 'text-neutral-200' : 'text-neutral-700'
-              }`}>
+              <span className={`font-medium text-base ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'
+                }`}>
                 PARÁMETROS FINANCIEROS
               </span>
               <div className="relative shrink-0 size-4">
@@ -246,7 +403,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
           </div>
-          
+
           {/* Indicador de años seleccionados */}
           <div className="mt-4 flex items-center gap-3">
             <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
@@ -254,13 +411,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </span>
             <div className="flex gap-2 flex-wrap">
               {selectedYears.map(year => (
-                <span 
+                <span
                   key={year}
-                  className={`px-3 py-1 rounded-md text-sm font-semibold ${
-                    isDarkMode
-                      ? 'bg-neutral-800 text-[#3ABE76] border border-[#3ABE76]'
-                      : 'bg-green-50 text-[#1a6e31] border border-green-200'
-                  }`}
+                  className={`px-3 py-1 rounded-md text-sm font-semibold ${isDarkMode
+                    ? 'bg-neutral-800 text-[#3ABE76] border border-[#3ABE76]'
+                    : 'bg-green-50 text-[#1a6e31] border border-green-200'
+                    }`}
                 >
                   {year}
                 </span>
@@ -277,11 +433,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="space-y-3">
               <button
                 onClick={() => toggleSection('utilidad')}
-                className={`w-full text-white rounded-lg p-4 flex items-center justify-between transition-colors ${
-                  isDarkMode
-                    ? 'bg-green-700 hover:bg-green-600'
-                    : 'bg-green-900 hover:bg-green-800'
-                }`}
+                className={`w-full text-white rounded-lg p-4 flex items-center justify-between transition-colors ${isDarkMode
+                  ? 'bg-green-700 hover:bg-green-600'
+                  : 'bg-green-900 hover:bg-green-800'
+                  }`}
               >
                 <span className="font-semibold text-base">UTILIDAD</span>
                 <div className={`transform transition-transform duration-200 ${sectionStates.utilidad ? 'rotate-90' : ''}`}>
@@ -292,21 +447,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
 
               {sectionStates.utilidad && (
-                <div className={`rounded-xl border shadow-sm p-5 space-y-4 ${
-                  isDarkMode
-                    ? 'bg-neutral-800 border-[#9e9e9e]'
-                    : 'bg-white border-[#e0e0e0]'
-                }`}>
-                  {/* Headers de años */}
-                  <div className={`py-3 border-b-2 border-dashed ${
-                    isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
+                <div className={`rounded-xl border shadow-sm p-5 space-y-4 ${isDarkMode
+                  ? 'bg-neutral-800 border-[#9e9e9e]'
+                  : 'bg-white border-[#e0e0e0]'
                   }`}>
+                  {/* Headers de años */}
+                  <div className={`py-3 border-b-2 border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
+                    }`}>
                     <div className="flex justify-between items-center">
                       {filteredYearData.years.map(year => (
                         <div key={year} className="flex-1 text-center">
-                          <span className={`text-base font-semibold ${
-                            isDarkMode ? 'text-neutral-200' : 'text-neutral-700'
-                          }`}>
+                          <span className={`text-base font-semibold ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'
+                            }`}>
                             {year}
                           </span>
                         </div>
@@ -315,29 +467,59 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
 
                   {/* Resultado principal */}
-                  <div className={`py-3 border-b-2 border-dashed ${
-                    isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
-                  }`}>
-                    <div className="flex justify-center">
-                      <span className={`text-3xl font-bold ${
-                        isDarkMode ? 'text-[#ff2e2e]' : 'text-[#b00020]'
-                      }`}>
-                        15.376
-                      </span>
+                  <div className={`py-3 border-b-2 border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
+                    }`}>
+                    <div className="flex justify-center flex-col">
+                      <div className="text-center">
+                        <span className={`text-2xl font-bold ${isDarkMode ? 'text-[#ff2e2e]' : 'text-[#b00020]'
+                          }`}>
+                          BASE: {isLoadingUtilidad ? 'Cargando...' : parameters.utilidad.result.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="text-center mt-2">
+                        <span className={`text-2xl font-bold ${isDarkMode ? 'text-[#3ABE76]' : 'text-[#1a6e31]'
+                          }`}>
+                          PROY: {isLoadingUtilidad || isLoadingFormulas ? 'Cargando...' :
+                            filteredYearData.utilidadValues.reduce((sum, item) => sum + item.projectedValue, 0).toLocaleString()}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Valores por año */}
-                  <div className={`py-3 border-b-2 border-dashed ${
-                    isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
-                  }`}>
+                  {/* Valores base por año */}
+                  <div className={`py-3 border-b border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
+                    }`}>
                     <div className="flex justify-between items-center">
-                      {filteredYearData.utilidadValues.map(({ year, value }) => (
+                      <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`}>
+                        BASE
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center mt-2">
+                      {filteredYearData.utilidadValues.map(({ year, baseValue }) => (
                         <div key={year} className="flex-1 text-center">
-                          <span className={`text-base font-semibold ${
-                            isDarkMode ? 'text-[#3acfff]' : 'text-[#2e649d]'
-                          }`}>
-                            {value.toLocaleString()}
+                          <span className={`text-base font-semibold ${isDarkMode ? 'text-[#3acfff]' : 'text-[#2e649d]'
+                            }`}>
+                            {isLoadingUtilidad ? '...' : baseValue.toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Valores proyectados por año */}
+                  <div className={`py-3 border-b-2 border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
+                    }`}>
+                    <div className="flex justify-between items-center">
+                      <span className={`text-sm font-medium ${isDarkMode ? 'text-[#3ABE76]' : 'text-[#1a6e31]'}`}>
+                        PROYECTADO
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center mt-2">
+                      {filteredYearData.utilidadValues.map(({ year, projectedValue }) => (
+                        <div key={year} className="flex-1 text-center">
+                          <span className={`text-base font-bold ${isDarkMode ? 'text-[#3ABE76]' : 'text-[#1a6e31]'
+                            }`}>
+                            {isLoadingUtilidad || isLoadingFormulas ? '...' : projectedValue.toLocaleString()}
                           </span>
                         </div>
                       ))}
@@ -347,9 +529,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {/* Fila PROY con campos editables */}
                   <div className="py-3">
                     <div className="flex items-center justify-between">
-                      <span className={`text-sm font-medium ${
-                        isDarkMode ? 'text-neutral-300' : 'text-neutral-600'
-                      }`}>
+                      <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'
+                        }`}>
                         PROY
                       </span>
                       <div className="flex gap-3 items-center">
@@ -361,17 +542,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             ))}
                           </div>
                         )}
-                        
+
                         {/* Campos editables para años futuros */}
-                        {getProjectionFields.map(year => (
-                          <EditableField
-                            key={`proy-${year}`}
-                            value={parameters.utilidad.proyecciones[year as keyof typeof parameters.utilidad.proyecciones] || 10}
-                            onChange={(value) => handleParameterChange('utilidad', `proy${year}`, value)}
-                            type="percentage"
-                            isDarkMode={isDarkMode}
-                          />
-                        ))}
+                        {isLoadingParametros ? (
+                          <div className="flex gap-3">
+                            {getProjectionFields.map(year => (
+                              <div key={`loading-${year}`} className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
+                            ))}
+                          </div>
+                        ) : (
+                          getProjectionFields.map(year => (
+                            <EditableField
+                              key={`proy-${year}`}
+                              value={parameters.utilidad.proyecciones[year] || 10}
+                              onChange={(value) => handleParameterChange('utilidad', `proy${year}`, value)}
+                              type="percentage"
+                              isDarkMode={isDarkMode}
+                            />
+                          ))
+                        )}
                       </div>
                     </div>
                   </div>
@@ -383,11 +572,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="space-y-3">
               <button
                 onClick={() => toggleSection('crecimientosVenta')}
-                className={`w-full text-white rounded-lg p-4 flex items-center justify-between transition-colors ${
-                  isDarkMode
-                    ? 'bg-green-700 hover:bg-green-600'
-                    : 'bg-green-900 hover:bg-green-800'
-                }`}
+                className={`w-full text-white rounded-lg p-4 flex items-center justify-between transition-colors ${isDarkMode
+                  ? 'bg-green-700 hover:bg-green-600'
+                  : 'bg-green-900 hover:bg-green-800'
+                  }`}
               >
                 <span className="font-semibold text-base">CRECIMIENTOS DE VENTA</span>
                 <div className={`transform transition-transform duration-200 ${sectionStates.crecimientosVenta ? 'rotate-90' : ''}`}>
@@ -398,21 +586,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
 
               {sectionStates.crecimientosVenta && (
-                <div className={`rounded-xl border shadow-sm p-5 space-y-4 ${
-                  isDarkMode
-                    ? 'bg-neutral-800 border-[#9e9e9e]'
-                    : 'bg-white border-[#e0e0e0]'
-                }`}>
-                  {/* Headers de años */}
-                  <div className={`py-3 border-b-2 border-dashed ${
-                    isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
+                <div className={`rounded-xl border shadow-sm p-5 space-y-4 ${isDarkMode
+                  ? 'bg-neutral-800 border-[#9e9e9e]'
+                  : 'bg-white border-[#e0e0e0]'
                   }`}>
+                  {/* Headers de años */}
+                  <div className={`py-3 border-b-2 border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
+                    }`}>
                     <div className="flex justify-between items-center">
                       {filteredYearData.years.map(year => (
                         <div key={year} className="flex-1 text-center">
-                          <span className={`text-base font-semibold ${
-                            isDarkMode ? 'text-neutral-200' : 'text-neutral-700'
-                          }`}>
+                          <span className={`text-base font-semibold ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'
+                            }`}>
                             {year}
                           </span>
                         </div>
@@ -421,15 +606,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
 
                   {/* Valores por año */}
-                  <div className={`py-3 border-b-2 border-dashed ${
-                    isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
-                  }`}>
+                  <div className={`py-3 border-b-2 border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
+                    }`}>
                     <div className="flex justify-between items-center">
                       {filteredYearData.crecimientosValues.map(({ year, value }) => (
                         <div key={year} className="flex-1 text-center">
-                          <span className={`text-base font-semibold ${
-                            isDarkMode ? 'text-[#3acfff]' : 'text-[#2e649d]'
-                          }`}>
+                          <span className={`text-base font-semibold ${isDarkMode ? 'text-[#3acfff]' : 'text-[#2e649d]'
+                            }`}>
                             {value.toLocaleString()}
                           </span>
                         </div>
@@ -440,9 +623,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {/* Fila PROY */}
                   <div className="py-3">
                     <div className="flex items-center justify-between">
-                      <span className={`text-sm font-medium ${
-                        isDarkMode ? 'text-neutral-300' : 'text-neutral-600'
-                      }`}>
+                      <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'
+                        }`}>
                         PROY
                       </span>
                       <div className="flex gap-3 items-center">
@@ -454,7 +636,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             ))}
                           </div>
                         )}
-                        
+
                         {/* Campos editables limitados a 2 para esta sección */}
                         {getProjectionFields.slice(0, 2).map((year, index) => (
                           <EditableField
@@ -476,11 +658,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="space-y-3">
               <button
                 onClick={() => toggleSection('inversiones')}
-                className={`w-full text-white rounded-lg p-4 flex items-center justify-between transition-colors ${
-                  isDarkMode
-                    ? 'bg-green-700 hover:bg-green-600'
-                    : 'bg-green-900 hover:bg-green-800'
-                }`}
+                className={`w-full text-white rounded-lg p-4 flex items-center justify-between transition-colors ${isDarkMode
+                  ? 'bg-green-700 hover:bg-green-600'
+                  : 'bg-green-900 hover:bg-green-800'
+                  }`}
               >
                 <span className="font-semibold text-base">INVERSIONES</span>
                 <div className={`transform transition-transform duration-200 ${sectionStates.inversiones ? 'rotate-90' : ''}`}>
@@ -491,21 +672,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
 
               {sectionStates.inversiones && (
-                <div className={`rounded-xl border shadow-sm p-5 space-y-4 ${
-                  isDarkMode
-                    ? 'bg-neutral-800 border-[#9e9e9e]'
-                    : 'bg-white border-[#e0e0e0]'
-                }`}>
-                  {/* Headers de años */}
-                  <div className={`py-3 border-b-2 border-dashed ${
-                    isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
+                <div className={`rounded-xl border shadow-sm p-5 space-y-4 ${isDarkMode
+                  ? 'bg-neutral-800 border-[#9e9e9e]'
+                  : 'bg-white border-[#e0e0e0]'
                   }`}>
+                  {/* Headers de años */}
+                  <div className={`py-3 border-b-2 border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
+                    }`}>
                     <div className="flex justify-between items-center">
                       {filteredYearData.years.map(year => (
                         <div key={year} className="flex-1 text-center">
-                          <span className={`text-base font-semibold ${
-                            isDarkMode ? 'text-neutral-200' : 'text-neutral-700'
-                          }`}>
+                          <span className={`text-base font-semibold ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'
+                            }`}>
                             {year}
                           </span>
                         </div>
@@ -514,15 +692,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
 
                   {/* Valores por año */}
-                  <div className={`py-3 border-b-2 border-dashed ${
-                    isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
-                  }`}>
+                  <div className={`py-3 border-b-2 border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
+                    }`}>
                     <div className="flex justify-between items-center">
                       {filteredYearData.inversionesValues.map(({ year, value }) => (
                         <div key={year} className="flex-1 text-center">
-                          <span className={`text-base font-semibold ${
-                            isDarkMode ? 'text-[#3acfff]' : 'text-[#2e649d]'
-                          }`}>
+                          <span className={`text-base font-semibold ${isDarkMode ? 'text-[#3acfff]' : 'text-[#2e649d]'
+                            }`}>
                             {value.toLocaleString()}
                           </span>
                         </div>
@@ -533,9 +709,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {/* Fila PROY */}
                   <div className="py-3">
                     <div className="flex items-center justify-between">
-                      <span className={`text-sm font-medium ${
-                        isDarkMode ? 'text-neutral-300' : 'text-neutral-600'
-                      }`}>
+                      <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'
+                        }`}>
                         PROY
                       </span>
                       <div className="flex gap-3 items-center">
@@ -547,7 +722,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             ))}
                           </div>
                         )}
-                        
+
                         {/* Campos editables limitados a 2 para esta sección */}
                         {getProjectionFields.slice(0, 2).map((year, index) => (
                           <EditableField
@@ -569,11 +744,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="space-y-3">
               <button
                 onClick={() => toggleSection('vidaUtilActivos')}
-                className={`w-full text-white rounded-lg p-4 flex items-center justify-between transition-colors ${
-                  isDarkMode
-                    ? 'bg-green-700 hover:bg-green-600'
-                    : 'bg-green-900 hover:bg-green-800'
-                }`}
+                className={`w-full text-white rounded-lg p-4 flex items-center justify-between transition-colors ${isDarkMode
+                  ? 'bg-green-700 hover:bg-green-600'
+                  : 'bg-green-900 hover:bg-green-800'
+                  }`}
               >
                 <span className="font-semibold text-base">VIDA ÚTIL ACTIVOS</span>
                 <div className={`transform transition-transform duration-200 ${sectionStates.vidaUtilActivos ? 'rotate-90' : ''}`}>
@@ -584,11 +758,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
 
               {sectionStates.vidaUtilActivos && (
-                <div className={`rounded-xl border shadow-sm p-5 ${
-                  isDarkMode
-                    ? 'bg-neutral-800 border-[#9e9e9e]'
-                    : 'bg-white border-[#e0e0e0]'
-                }`}>
+                <div className={`rounded-xl border shadow-sm p-5 ${isDarkMode
+                  ? 'bg-neutral-800 border-[#9e9e9e]'
+                  : 'bg-white border-[#e0e0e0]'
+                  }`}>
                   <div className="flex items-center justify-between">
                     <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`}>
                       VIDA ÚTIL ACTIVOS
@@ -609,11 +782,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="space-y-3">
               <button
                 onClick={() => toggleSection('estacionalidad')}
-                className={`w-full text-white rounded-lg p-4 flex items-center justify-between transition-colors ${
-                  isDarkMode
-                    ? 'bg-green-700 hover:bg-green-600'
-                    : 'bg-green-900 hover:bg-green-800'
-                }`}
+                className={`w-full text-white rounded-lg p-4 flex items-center justify-between transition-colors ${isDarkMode
+                  ? 'bg-green-700 hover:bg-green-600'
+                  : 'bg-green-900 hover:bg-green-800'
+                  }`}
               >
                 <span className="font-semibold text-base">ESTACIONALIDAD DE VENTAS</span>
                 <div className={`transform transition-transform duration-200 ${sectionStates.estacionalidad ? 'rotate-90' : ''}`}>
@@ -624,24 +796,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
 
               {sectionStates.estacionalidad && (
-                <div className={`rounded-xl border shadow-sm p-5 space-y-4 ${
-                  isDarkMode
-                    ? 'bg-neutral-800 border-[#9e9e9e]'
-                    : 'bg-white border-[#e0e0e0]'
-                }`}>
-                  <div className={`text-center text-sm ${
-                    isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
+                <div className={`rounded-xl border shadow-sm p-5 space-y-4 ${isDarkMode
+                  ? 'bg-neutral-800 border-[#9e9e9e]'
+                  : 'bg-white border-[#e0e0e0]'
                   }`}>
+                  <div className={`text-center text-sm ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
+                    }`}>
                     Configuración de estacionalidad para {selectedYears.length} año{selectedYears.length !== 1 ? 's' : ''}
                   </div>
-                  
+
                   {/* Botón de configuración */}
                   <div className="flex justify-center">
-                    <button className={`px-6 py-3 rounded-lg text-sm font-medium transition-colors ${
-                      isDarkMode
-                        ? 'bg-neutral-700 text-[#3ABE76] border border-[#3ABE76] hover:bg-neutral-600'
-                        : 'bg-green-50 text-[#1a6e31] border border-green-200 hover:bg-green-100'
-                    }`}>
+                    <button className={`px-6 py-3 rounded-lg text-sm font-medium transition-colors ${isDarkMode
+                      ? 'bg-neutral-700 text-[#3ABE76] border border-[#3ABE76] hover:bg-neutral-600'
+                      : 'bg-green-50 text-[#1a6e31] border border-green-200 hover:bg-green-100'
+                      }`}>
                       Configurar estacionalidad
                     </button>
                   </div>
@@ -658,9 +827,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </svg>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`font-medium text-base ${
-                    isDarkMode ? 'text-neutral-200' : 'text-neutral-700'
-                  }`}>
+                  <span className={`font-medium text-base ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'
+                    }`}>
                     FACTORES FINANCIEROS
                   </span>
                   <div className="relative shrink-0 size-4">
@@ -672,10 +840,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                 </div>
               </div>
-              
-              <div className={`text-center text-sm py-8 ${
-                isDarkMode ? 'text-neutral-500' : 'text-neutral-600'
-              }`}>
+
+              <div className={`text-center text-sm py-8 ${isDarkMode ? 'text-neutral-500' : 'text-neutral-600'
+                }`}>
                 Sección disponible próximamente
               </div>
             </div>

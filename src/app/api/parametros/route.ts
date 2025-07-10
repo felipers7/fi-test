@@ -21,23 +21,33 @@ async function connectToDatabase() {
     }
 }
 
-// Get all parametros from database
-async function getAllParametros(): Promise<any[]> {
+// Get parametros from database with optional filtering
+async function getParametros(prmt_codigo?: string): Promise<any[]> {
     const connection = await connectToDatabase();
 
     try {
-        const query = `
+        let query = `
             SELECT 
                 prmt_codigo,
                 prmt_desc,
-                prmt_valor
+                prmt_valor,
+                prmt_ano
             FROM parametros
-            ORDER BY prmt_codigo
         `;
 
-        console.log('Parametros SQL Query:', query);
+        const queryParams: string[] = [];
 
-        const [rows] = await connection.execute(query);
+        if (prmt_codigo) {
+            query += ` WHERE prmt_codigo = ?`;
+            queryParams.push(prmt_codigo);
+        }
+
+        query += ` ORDER BY prmt_codigo, prmt_ano`;
+
+        console.log('Parametros SQL Query:', query);
+        console.log('Query params:', queryParams);
+
+        const [rows] = await connection.execute(query, queryParams);
         await connection.end();
 
         return rows as any[];
@@ -50,8 +60,11 @@ async function getAllParametros(): Promise<any[]> {
 
 export async function GET(request: Request) {
     try {
-        // Get all parametros from database
-        const parametros = await getAllParametros();
+        const { searchParams } = new URL(request.url);
+        const prmt_codigo = searchParams.get('prmt_codigo');
+
+        // Get parametros from database (optionally filtered)
+        const parametros = await getParametros(prmt_codigo || undefined);
 
         console.log('Retrieved parametros:', parametros);
 

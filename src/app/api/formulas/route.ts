@@ -21,25 +21,35 @@ async function connectToDatabase() {
     }
 }
 
-// Get formulas with fmls_codigo > 90000 from database
-async function getFormulasAbove90000(): Promise<any[]> {
+// Get formulas from database with optional filtering
+async function getFormulas(fmls_desc?: string): Promise<any[]> {
     const connection = await connectToDatabase();
 
     try {
-        const query = `
+        let query = `
             SELECT 
                 fmls_codigo,
                 fmls_desc,
                 fmls_body,
                 fmls_ano
             FROM formulas
-            WHERE fmls_codigo > 90000
-            ORDER BY fmls_codigo
         `;
 
-        console.log('Formulas SQL Query:', query);
+        const queryParams: string[] = [];
 
-        const [rows] = await connection.execute(query);
+        if (fmls_desc) {
+            query += ` WHERE fmls_desc = ?`;
+            queryParams.push(fmls_desc);
+        } else {
+            query += ` WHERE fmls_codigo > 90000`;
+        }
+
+        query += ` ORDER BY fmls_codigo`;
+
+        console.log('Formulas SQL Query:', query);
+        console.log('Query params:', queryParams);
+
+        const [rows] = await connection.execute(query, queryParams);
         await connection.end();
 
         return rows as any[];
@@ -52,8 +62,11 @@ async function getFormulasAbove90000(): Promise<any[]> {
 
 export async function GET(request: Request) {
     try {
-        // Get formulas with fmls_codigo > 90000 from database
-        const formulas = await getFormulasAbove90000();
+        const { searchParams } = new URL(request.url);
+        const fmls_desc = searchParams.get('fmls_desc');
+
+        // Get formulas from database (optionally filtered)
+        const formulas = await getFormulas(fmls_desc || undefined);
 
         console.log('Retrieved formulas:', formulas);
 
