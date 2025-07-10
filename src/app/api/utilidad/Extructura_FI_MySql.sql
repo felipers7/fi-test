@@ -406,6 +406,7 @@ create table parametros(
   prmt_codigo text NOT NULL,
   prmt_desc TEXT NOT NULL,
   prmt_valor decimal(18,2) NOT NULL,
+  prmt_valor int NOT NULL,
   PRIMARY KEY (prmt_codigo)
 );
 
