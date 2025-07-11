@@ -295,6 +295,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           }
         }
       }));
+
     }
 
     // Also notify parent component for main page updates
