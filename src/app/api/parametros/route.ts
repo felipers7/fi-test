@@ -30,8 +30,7 @@ async function getParametros(prmt_codigo?: string): Promise<any[]> {
             SELECT 
                 prmt_codigo,
                 prmt_desc,
-                prmt_valor,
-                prmt_ano
+                prmt_valor
             FROM parametros
         `;
 
@@ -42,7 +41,7 @@ async function getParametros(prmt_codigo?: string): Promise<any[]> {
             queryParams.push(prmt_codigo);
         }
 
-        query += ` ORDER BY prmt_codigo, prmt_ano`;
+        query += ` ORDER BY prmt_codigo`;
 
         console.log('Parametros SQL Query:', query);
         console.log('Query params:', queryParams);

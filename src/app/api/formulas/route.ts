@@ -30,8 +30,7 @@ async function getFormulas(fmls_desc?: string): Promise<any[]> {
             SELECT 
                 fmls_codigo,
                 fmls_desc,
-                fmls_body,
-                fmls_ano
+                fmls_body
             FROM formulas
         `;
 

@@ -134,6 +134,11 @@ values
 (800002,-64470943,2023);
 
 
+1 presupuestado = 0
+2 real
+3 proyectado
+
+
 
 create table formulas(
 	fmls_codigo  int NOT NULL,
@@ -143,27 +148,27 @@ create table formulas(
 	PRIMARY KEY (fmls_codigo, fmls_ano)
 );
 
-INSERT INTO formulas (fmls_codigo, fmls_desc, fmls_body, fmls_ano) VALUES
-    (10001, 'utilidad_basica',      'SUM("100000") - SUM("200000")',2024),
-    (10002, 'utilidad_operacional', 'SUM("400000") - SUM("600000")',2024),
-    (10003, 'utilidad_neta',        '(SUM("400000") - SUM("600000")) * 0.8',2024),
-    (10004, 'patrimonio',           'SUM("100000") - SUM("200000")',2024),
-    (10005, 'liquidez_ratio',       'SUM("100000") / SUM("200000")',2024),
-    (10006, 'rentabilidad',         '(SUM("400000") - SUM("600000")) / SUM("100000") * 100',2024),
-    (10007, 'promedio_activos',     'AVG("100000")',2024),
-    (10008, 'total_cuentas',        'COUNT("100000") + COUNT("200000")',2024),
-    (10009, 'activo_maximo',        'MAX("100000")',2024),
-    (10010, 'roi',                  '(SUM("400000") - SUM("600000")) / SUM("100000") * 100',2024),
-    (10011, 'debt_ratio',           'SUM("200000") / SUM("100000")',2024),
-    (10012, 'profit_margin',        '(SUM("400000") - SUM("600000")) / SUM("400000") * 100',2024),
-    (10013, 'complex_formula',      '(SUM("100000") * 1.2) - (SUM("200000") * 0.8) + (SUM("400000") - SUM("600000")) / 2',2024);
+INSERT INTO formulas (fmls_codigo, fmls_desc, fmls_body,) VALUES
+    (10001, 'utilidad_basica',      'SUM("100000") - SUM("200000")'),
+    (10002, 'utilidad_operacional', 'SUM("400000") - SUM("600000")'),
+    (10003, 'utilidad_neta',        '(SUM("400000") - SUM("600000")) * 0.8'),
+    (10004, 'patrimonio',           'SUM("100000") - SUM("200000")'),
+    (10005, 'liquidez_ratio',       'SUM("100000") / SUM("200000")'),
+    (10006, 'rentabilidad',         '(SUM("400000") - SUM("600000")) / SUM("100000") * 100'),
+    (10007, 'promedio_activos',     'AVG("100000")'),
+    (10008, 'total_cuentas',        'COUNT("100000") + COUNT("200000")'),
+    (10009, 'activo_maximo',        'MAX("100000")'),
+    (10010, 'roi',                  '(SUM("400000") - SUM("600000")) / SUM("100000") * 100'),
+    (10011, 'debt_ratio',           'SUM("200000") / SUM("100000")'),
+    (10012, 'profit_margin',        '(SUM("400000") - SUM("600000")) / SUM("400000") * 100'),
+    (10013, 'complex_formula',      '(SUM("100000") * 1.2) - (SUM("200000") * 0.8) + (SUM("400000") - SUM("600000")) / 2');
 
 
 
 
 INSERT INTO formulas (fmls_codigo, fmls_desc, fmls_body, fmls_ano) VALUES
-    (90001, 'utilidad_basica_proyeccion', 'utilidad_basica * param + 25',2024),
-    (90002, 'utilidad_basica_proyeccion', 'utilidad_basica * param',null),
+    (90001, 'utilidad_basica_proyeccion', 'utilidad_basica * param + 25'),
+    (90002, 'utilidad_basica_proyeccion', 'utilidad_basica * param'),
 
 
 
