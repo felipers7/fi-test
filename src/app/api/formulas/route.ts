@@ -22,6 +22,7 @@ async function connectToDatabase() {
 }
 
 // Get formulas from database with optional filtering
+// UPDATED: Removed year-specific logic since formulas are now generic
 async function getFormulas(fmls_desc?: string): Promise<any[]> {
     const connection = await connectToDatabase();
 
@@ -69,11 +70,14 @@ export async function GET(request: Request) {
 
         console.log('Retrieved formulas:', formulas);
 
+        // NEW: Return generic formulas without year association
+        // The frontend will apply these formulas to specific years as needed
         return NextResponse.json({
             success: true,
             data: {
                 formulas: formulas,
-                count: formulas.length
+                count: formulas.length,
+                note: 'Formulas are now generic and applied per year by frontend'
             }
         });
     } catch (error) {

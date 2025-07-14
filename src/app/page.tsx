@@ -14,62 +14,46 @@ import ExpandIcon from '../imports/ExpandIcon';
 import svgPaths from "../imports/svg-kyrm2ff689";
 import svgPathsDark from "../imports/svg-ec6iy79qbc";
 
+// Tipo unificado para los datos de las tarjetas financieras
+interface FinancialCardData {
+  id: string;
+  title: string;
+  data: {
+    dates: string[];
+    result: number | string;
+    // Tres filas de datos conceptualmente claras (8 valores cada una = 24 valores total)
+    presupuestadoValues: (number | string)[]; // Fila 1 - Valores presupuestados
+    realValues: (number | string)[]; // Fila 2 - Valores reales/base
+    proyectadoValues?: (number | string)[]; // Fila 3 - Valores proyectados (opcional)
+  };
+}
 
-// Sample data for the financial cards
-const mockFinancialData = {
+// Datos de ejemplo para las tarjetas
+const mockFinancialData: Omit<FinancialCardData, 'id' | 'title'>['data'] = {
   dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
-  values: [147950, 147950, 177540, 177540, 230802, 235000, 245000, 255000],
-  result: 15376
+  realValues: [147950, 147950, 177540, 177540, 230802, 235000, 245000, 255000], // Valores reales van a realValues
+  result: 15376,
+  presupuestadoValues: Array(8).fill(0), // Valores presupuestados (ceros por defecto)
+  proyectadoValues: [162745, 162745, 195294, 195294, 253882, 258500, 269500, 280500] // Valores proyectados (10% más que realValues)
 };
 
-// Additional sample data for variety - DEFAULT FALLBACK
-const mockData2Default = {
+// Helper para generar datos de ejemplo
+const createMockData = (values: number[], result: number) => ({
   dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
-  values: ["cargando", "cargando", "cargando", "cargando", "cargando", "cargando", "cargando", "cargando"],
-  result: "cargando"
-};
+  realValues: values, // Valores reales van a realValues
+  result,
+  presupuestadoValues: Array(8).fill(0), // Valores presupuestados (ceros por defecto)
+  proyectadoValues: values.map(v => Math.round(v * 1.1)) // Valores proyectados (10% más que realValues)
+});
 
-const mockData3 = {
-  dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
-  values: [95000, 105000, 115000, 125000, 135000, 145000, 155000, 165000],
-  result: 12500
-};
+const mockData3 = createMockData([95000, 105000, 115000, 125000, 135000, 145000, 155000, 165000], 12500);
+const mockData4 = createMockData([110000, 125000, 140000, 155000, 170000, 185000, 200000, 215000], 16750);
+const mockData5 = createMockData([85000, 95000, 105000, 115000, 125000, 135000, 145000, 155000], 11200);
+const mockData6 = createMockData([75000, 85000, 95000, 105000, 115000, 125000, 135000, 145000], 10300);
+const mockData7 = createMockData([130000, 145000, 160000, 175000, 190000, 205000, 220000, 235000], 19500);
+const mockData8 = createMockData([100000, 115000, 130000, 145000, 160000, 175000, 190000, 205000], 14800);
+const mockData9 = createMockData([90000, 100000, 110000, 120000, 130000, 140000, 150000, 160000], 13200);
 
-const mockData4 = {
-  dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
-  values: [110000, 125000, 140000, 155000, 170000, 185000, 200000, 215000],
-  result: 16750
-};
-
-const mockData5 = {
-  dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
-  values: [85000, 95000, 105000, 115000, 125000, 135000, 145000, 155000],
-  result: 11200
-};
-
-const mockData6 = {
-  dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
-  values: [75000, 85000, 95000, 105000, 115000, 125000, 135000, 145000],
-  result: 10300
-};
-
-const mockData7 = {
-  dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
-  values: [130000, 145000, 160000, 175000, 190000, 205000, 220000, 235000],
-  result: 19500
-};
-
-const mockData8 = {
-  dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
-  values: [100000, 115000, 130000, 145000, 160000, 175000, 190000, 205000],
-  result: 14800
-};
-
-const mockData9 = {
-  dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
-  values: [90000, 100000, 110000, 120000, 130000, 140000, 150000, 160000],
-  result: 13200
-};
 
 // Define section filter states
 interface SectionFilters {
@@ -144,12 +128,29 @@ export default function App() {
   const [isLoadingGlobalParametros, setIsLoadingGlobalParametros] = useState(true);
   const [isLoadingFormulas, setIsLoadingFormulas] = useState(true);
 
-  // Projection formulas state
-  const [projectionFormulas, setProjectionFormulas] = useState<{ [year: string]: string }>({});
+  // Projection formulas state - UPDATED: Now stores generic formulas, not year-specific
+  const [projectionFormulas, setProjectionFormulas] = useState<{ [formulaType: string]: string }>({});
 
   // Dynamic mockData2 that gets replaced by API data
   const mockData2 = useMemo(() => {
-    return utilidadData || mockData2Default;
+    // Si no hay datos de la API, se muestra un estado de carga.
+    if (!utilidadData) {
+      return {
+        dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
+        presupuestadoValues: Array(8).fill(0), // Primera fila - ceros
+        realValues: Array(8).fill("cargando"), // Segunda fila - estado de carga
+        proyectadoValues: Array(8).fill("cargando"), // Tercera fila - estado de carga
+        result: "cargando"
+      };
+    }
+    return {
+      ...utilidadData,
+      presupuestadoValues: Array(8).fill(0), // Primera fila - ceros
+      realValues: utilidadData.values || Array(8).fill("cargando"), // Segunda fila - datos de API
+      proyectadoValues: utilidadData.values ? utilidadData.values.map((v: any) =>
+        typeof v === 'string' ? v : Math.round(v * 1.1)
+      ) : Array(8).fill("cargando") // Tercera fila - datos procesados
+    };
   }, [utilidadData]);
 
   // Debug effect to track utilidadData changes
@@ -169,7 +170,6 @@ export default function App() {
         method: 'GET',
         cache: 'no-store'
       });
-      console.log('Response status:', response.status);
 
       if (response.ok) {
         const result = await response.json();
@@ -196,18 +196,17 @@ export default function App() {
             }
           }));
         } else {
-          console.error('API returned unsuccessful response:', result);
-          setUtilidadData(mockData2Default);
+          console.warn('API returned unsuccessful response:', result);
+          setUtilidadData(null); // Usar null para indicar que la carga falló
         }
       } else {
-        console.error('Response not ok:', response.status, response.statusText);
-        const errorText = await response.text();
-        console.error('Error response body:', errorText);
-        setUtilidadData(mockData2Default);
+        console.warn(`API request failed with status ${response.status}: ${response.statusText}`);
+        // En lugar de intentar leer el texto del error, simplemente continuamos
+        setUtilidadData(null); // Usar null para indicar que la carga falló
       }
     } catch (error) {
-      console.error('Failed to fetch utilidad data:', error);
-      setUtilidadData(mockData2Default);
+      console.warn('Failed to fetch utilidad data (DB may be offline):', error);
+      setUtilidadData(null); // Usar null para indicar que la carga falló
     } finally {
       setIsLoadingUtilidad(false);
       console.log('Finished fetching utilidad data');
@@ -238,16 +237,20 @@ export default function App() {
               proyecciones: proyecciones
             }
           }));
+        } else {
+          console.warn('Parametros API returned unsuccessful response:', result);
         }
+      } else {
+        console.warn(`Parametros API request failed with status ${response.status}: ${response.statusText}`);
       }
     } catch (error) {
-      console.error('Failed to fetch global parametros data:', error);
+      console.warn('Failed to fetch global parametros data (DB may be offline):', error);
     } finally {
       setIsLoadingGlobalParametros(false);
     }
   }, []);
 
-  // Fetch projection formulas from API
+  // Fetch projection formulas from API - UPDATED: Get generic formulas
   const fetchProjectionFormulas = useCallback(async () => {
     try {
       setIsLoadingFormulas(true);
@@ -256,19 +259,25 @@ export default function App() {
       if (response.ok) {
         const result = await response.json();
         if (result.success && result.data && result.data.formulas) {
-          const formulas: { [year: string]: string } = {};
+          const formulas: { [formulaType: string]: string } = {};
 
           result.data.formulas.forEach((formula: any) => {
-            if (formula.fmls_ano) {
-              formulas[formula.fmls_ano.toString()] = formula.fmls_body;
+            // Store formulas by description/type, not by year
+            if (formula.fmls_desc) {
+              formulas[formula.fmls_desc] = formula.fmls_body;
             }
           });
 
           setProjectionFormulas(formulas);
+          console.log('Loaded generic projection formulas:', formulas);
+        } else {
+          console.warn('Formulas API returned unsuccessful response:', result);
         }
+      } else {
+        console.warn(`Formulas API request failed with status ${response.status}: ${response.statusText}`);
       }
     } catch (error) {
-      console.error('Failed to fetch projection formulas:', error);
+      console.warn('Failed to fetch projection formulas (DB may be offline):', error);
     } finally {
       setIsLoadingFormulas(false);
     }
@@ -373,82 +382,105 @@ export default function App() {
     return globalParameters.utilidad.values[year] || 0;
   }, [globalParameters.utilidad.values]);
 
-  // Function to evaluate projection formula (utilidad_basica * param)
-  const evaluateProjection = useCallback((year: string): number => {
-    const baseValue = getBaseValue(year);
+  // UPDATED: New projection evaluation using previous year's REAL value as base
+  const evaluateProjection = useCallback((currentYear: string): number | string => {
+    const currentYearNum = parseInt(currentYear);
 
-    // Each year uses only its specific parameter, but formula can use fallback
-    const paramValue = globalParameters.utilidad.proyecciones[year];
-    const formula = projectionFormulas[year] ||
-      getLatestAvailable(projectionFormulas, year) ||
-      "utilidad_basica * param"; // default formula if none found
+    // NEW RULE: Projection only works for 2025 onward
+    if (currentYearNum < 2025) {
+      return '-'; // Show dash for historical years where projection is impossible
+    }
 
-    // If no specific parameter for this year, return base value (no projection)
+    const previousYear = (currentYearNum - 1).toString();
+
+    // Get the REAL value from previous year as base (not the current year)
+    const baseValue = globalParameters.utilidad.values[previousYear] || 0;
+
+    // Get the projection parameter for the current year
+    const paramValue = globalParameters.utilidad.proyecciones[currentYear];
+
+    // Get the generic formula (not year-specific anymore)
+    const formula = projectionFormulas['utilidad_basica_proyeccion'] || "base * (param / 100) + 250000";
+
+    // If no parameter for this year or no base value, return dash
     if (!paramValue || baseValue === 0) {
-      return baseValue;
+      return '-';
     }
 
     try {
-      // Simple evaluation by replacing keywords
+      // NEW: Evaluate formula using previous year's REAL value as base
       let evaluatedFormula = formula
-        .replace(/utilidad_basica/g, baseValue.toString())
-        .replace(/param/g, (paramValue / 100).toString());
+        .replace(/base/g, baseValue.toString()) // Use previous year's REAL value
+        .replace(/param/g, paramValue.toString()); // Use current year's parameter
+
+      console.log(`Projection for ${currentYear}: base=${baseValue} (from ${previousYear}), param=${paramValue}, formula="${formula}" -> "${evaluatedFormula}"`);
 
       // Use eval for simple mathematical expressions
       const result = eval(evaluatedFormula);
       return Math.round(result);
     } catch (error) {
       console.error('Main page formula evaluation error:', error);
-      return baseValue;
+      return baseValue; // Fallback to base value if formula fails
     }
-  }, [getBaseValue, globalParameters.utilidad.proyecciones, projectionFormulas, getLatestAvailable]);
+  }, [globalParameters.utilidad.values, globalParameters.utilidad.proyecciones, projectionFormulas]);
 
-  // Función para aplicar parámetros a los datos
+  // Función para aplicar parámetros a los datos - UPDATED projection logic
   const applyParametersToData = useCallback((originalData: any) => {
     const multiplier = 1 + (financialParameters.utilidad.crecimiento / 100);
     const growthFactor = financialParameters.crecimientosVenta.porcentaje / 100;
 
-    // For utilidad data (mockData2), provide both BASE and PROJECTED values
+    // Para datos de utilidad (mockData2), proveer valores BASE y PROYECTADOS
     if (originalData === mockData2 && globalParameters.utilidad.values && Object.keys(globalParameters.utilidad.values).length > 0) {
-      // Calculate projected values for second row
-      const projectedValues = originalData.values.map((value: any, index: number) => {
-        const year = originalData.dates[index];
-        // Show loading state
+
+      // UPDATED: Use new projection logic for each year
+      const projectedValues = originalData.realValues.map((value: any, index: number) => {
+        const currentYear = originalData.dates[index];
         if (typeof value === 'string' && value === 'cargando') {
           return 'cargando';
         }
-        // Use projected values for second row
-        return evaluateProjection(year) || globalParameters.utilidad.values[year] || value;
-      });
 
-      const projectedResult = Object.keys(globalParameters.utilidad.values).reduce((sum, year) => {
-        return sum + evaluateProjection(year);
-      }, 0);
+        // Use the new projection evaluation logic
+        const projectionResult = evaluateProjection(currentYear);
+        return projectionResult;
+      });
 
       return {
         ...originalData,
-        // First row: BASE values (unchanged)
-        values: originalData.values,
-        result: originalData.result,
-        // Second row: PROJECTED values  
-        projectedValues: projectedValues,
-        projectedResult: projectedResult
+        presupuestadoValues: Array(originalData.dates.length).fill(0), // Fila 1 - siempre ceros
+        realValues: originalData.realValues, // Fila 2 - valores base (from API)
+        proyectadoValues: projectedValues // Fila 3 - valores proyectados using new logic
       };
     }
 
-    // Apply parameters to other financial data (not utilidad)
+    // Aplicar parámetros a otros datos financieros (existing logic for non-utilidad cards)
+    const processedRow2Values = originalData.realValues.map((value: number, index: number) => {
+      if (typeof value === 'string') return value;
+      const year = parseInt(originalData.dates[index]);
+      const yearGrowth = year > 2025 ? growthFactor : 0;
+      return Math.round(value * multiplier * (1 + yearGrowth));
+    });
+
+    // For non-utilidad cards: Generate third row but show '-' for years before 2025
+    const generatedRow3Values = processedRow2Values.map((value: any, index: number) => {
+      if (typeof value === 'string') return value;
+      const year = parseInt(originalData.dates[index]);
+
+      // NEW RULE: No projection for years before 2025
+      if (year < 2025) {
+        return '-';
+      }
+
+      return Math.round(value * 1.1); // Apply 10% additional as example for future years
+    });
+
     return {
       ...originalData,
-      values: originalData.values.map((value: number, index: number) => {
-        if (typeof value === 'string') return value;
-        // Aplicar crecimiento progresivo según los parámetros
-        const year = parseInt(originalData.dates[index]);
-        const yearGrowth = year > 2025 ? growthFactor : 0; // Solo aplicar a años futuros
-        return Math.round(value * multiplier * (1 + yearGrowth));
-      }),
-      result: Math.round(originalData.result * multiplier)
+      presupuestadoValues: Array(originalData.dates.length).fill(0), // Fila 1 - siempre ceros
+      realValues: processedRow2Values, // Fila 2 - valores procesados
+      proyectadoValues: generatedRow3Values, // Fila 3 - updated projection logic
+      result: typeof originalData.result === 'number' ? Math.round(originalData.result * multiplier) : originalData.result
     };
-  }, [financialParameters, globalParameters.utilidad.values, evaluateProjection]);
+  }, [financialParameters, globalParameters.utilidad.values, evaluateProjection, mockData2]);
 
   // Function to get titles for cards
   const getTitleForCard = useCallback((keyPrefix: string, index: number): string => {
@@ -506,73 +538,77 @@ export default function App() {
     }
   }, [arraysEqual]);
 
-  // Dynamic SECTION_DATA with utilidadData
-  const SECTION_DATA = useMemo(() => ({
-    crecimiento: [
-      mockFinancialData, mockData2, mockData3, mockFinancialData, mockData2,
-      mockData3, mockFinancialData, mockData4, mockData5
-    ],
-    riesgo: [
-      mockFinancialData, mockData2, mockData3, mockData4, mockData5,
-      mockData6, mockData7, mockData8, mockData9
-    ],
-    flujo: [mockFinancialData, mockData2, mockData3],
-    rentabilidad: [mockData3, mockData4, mockData5]
-  }), [mockData2]);
+  // Definición de las secciones y sus datos
+  const sections = useMemo(() => ({
+    crecimiento: {
+      title: "CRECIMIENTO SOSTENIBLE",
+      data: [
+        mockFinancialData, mockData2, mockData3, mockFinancialData, mockData2,
+        mockData3, mockFinancialData, mockData4, mockData5
+      ],
+      icon: <svg className="block size-full" fill="none" viewBox="0 0 32 32"><path d={svgPathsDark.p20c62f00} fill={isDarkMode ? "white" : "#404040"} /></svg>
+    },
+    riesgo: {
+      title: "RIESGO FINANCIERO",
+      data: [
+        mockFinancialData, mockData2, mockData3, mockData4, mockData5,
+        mockData6, mockData7, mockData8, mockData9
+      ],
+      icon: <svg className="block size-full" fill="none" viewBox="0 0 32 32"><path d={svgPathsDark.p5d83c80} fill={isDarkMode ? "white" : "#404040"} /></svg>
+    },
+    flujo: {
+      title: "FLUJO DE EFECTIVO",
+      data: [mockFinancialData, mockData2, mockData3],
+      icon: <svg className="block size-full" fill="none" viewBox="0 0 32 32"><path d={svgPathsDark.p266f0a80} fill={isDarkMode ? "white" : "#404040"} /></svg>
+    },
+    rentabilidad: {
+      title: "RENTABILIDAD DEL PATRIMONIO",
+      data: [mockData3, mockData4, mockData5],
+      icon: <svg className="block size-full" fill="none" viewBox="0 0 32 32"><path d={svgPathsDark.p9a70c80} fill={isDarkMode ? "white" : "#404040"} /></svg>
+    }
+  }), [mockData2, isDarkMode]);
 
-  // Memoized filtered cards to prevent recreation on every render
-  const createCardData = useCallback((dataArray: any[], keyPrefix: string, sectionKey: SectionKey) => {
-    const filters = sectionFilters[sectionKey];
-    const availableCategories = getAvailableCategories(sectionKey);
+  // Generación de datos de tarjetas de forma centralizada
+  const allCardData = useMemo(() => {
+    const newAllCardData: { [key in SectionKey]: FinancialCardData[] } = {
+      crecimiento: [],
+      riesgo: [],
+      flujo: [],
+      rentabilidad: []
+    };
 
-    const categoriesToShow = filters.selectedCategories.length === 0
-      ? availableCategories
-      : filters.selectedCategories;
+    (Object.keys(sections) as SectionKey[]).forEach(sectionKey => {
+      const sectionInfo = sections[sectionKey];
+      const filters = sectionFilters[sectionKey];
+      const availableCategories = getAvailableCategories(sectionKey);
 
-    // Usar años de la sección si están definidos, sino usar los globales
-    const yearsToUse = filters.selectedYears.length > 0 ? filters.selectedYears : globalSelectedYears;
+      const categoriesToShow = filters.selectedCategories.length === 0
+        ? availableCategories
+        : filters.selectedCategories;
 
-    return dataArray
-      .map((data, index) => ({
-        id: `${keyPrefix}-${index}`,
-        data: applyParametersToData(data),
-        index,
-        title: getTitleForCard(keyPrefix, index)
-      }))
-      .filter(({ title }) => categoriesToShow.includes(title));
-  }, [sectionFilters, globalSelectedYears, applyParametersToData, getTitleForCard, getAvailableCategories]);
+      newAllCardData[sectionKey] = sectionInfo.data
+        .map((data, index) => ({
+          id: `${sectionKey}-${index}`,
+          title: getTitleForCard(sectionKey, index),
+          data: applyParametersToData(data),
+        }))
+        .filter(card => categoriesToShow.includes(card.title));
+    });
 
-  // Memoized card data for each section
-  const crecimientoCardData = useMemo(() =>
-    createCardData(SECTION_DATA.crecimiento, 'crecimiento', 'crecimiento'),
-    [createCardData, SECTION_DATA.crecimiento]
-  );
+    return newAllCardData;
+  }, [sections, sectionFilters, getAvailableCategories, getTitleForCard, applyParametersToData]);
 
-  const riesgoCardData = useMemo(() =>
-    createCardData(SECTION_DATA.riesgo, 'riesgo', 'riesgo'),
-    [createCardData, SECTION_DATA.riesgo]
-  );
 
-  const flujoCardData = useMemo(() =>
-    createCardData(SECTION_DATA.flujo, 'flujo', 'flujo'),
-    [createCardData, SECTION_DATA.flujo]
-  );
-
-  const rentabilidadCardData = useMemo(() =>
-    createCardData(SECTION_DATA.rentabilidad, 'rentabilidad', 'rentabilidad'),
-    [createCardData, SECTION_DATA.rentabilidad]
-  );
-
-  // Function to create React elements from card data
-  const createCardElements = useCallback((cardData: any[], currentOrder: string[]) => {
-    // If we have a custom order, use it; otherwise use default order
+  // Función para crear elementos React a partir de los datos de las tarjetas
+  const createCardElements = useCallback((cardData: FinancialCardData[], sectionKey: SectionKey) => {
+    const currentOrder = cardOrders[sectionKey] || [];
     const orderedData = currentOrder.length > 0
-      ? currentOrder.map(id => cardData.find(item => item.id === id)).filter(Boolean)
+      ? currentOrder.map(id => cardData.find(item => item.id === id)).filter(Boolean) as FinancialCardData[]
       : cardData;
 
-    return orderedData.map(({ id, data, title, index }) => {
-      const yearsToUse = sectionFilters[id.split('-')[0] as SectionKey]?.selectedYears.length > 0
-        ? sectionFilters[id.split('-')[0] as SectionKey].selectedYears
+    return orderedData.map(({ id, data, title }) => {
+      const yearsToUse = sectionFilters[sectionKey]?.selectedYears.length > 0
+        ? sectionFilters[sectionKey].selectedYears
         : globalSelectedYears;
 
       return (
@@ -584,46 +620,42 @@ export default function App() {
         />
       );
     });
-  }, [sectionFilters, globalSelectedYears]);
+  }, [sectionFilters, globalSelectedYears, cardOrders]);
 
-  // Create card elements for each section
-  const crecimientoCards = useMemo(() =>
-    createCardElements(crecimientoCardData, cardOrders.crecimiento),
-    [createCardElements, crecimientoCardData, cardOrders.crecimiento]
-  );
+  // Creación de elementos de tarjeta para cada sección
+  const sectionCards = useMemo(() => {
+    const newSectionCards: { [key in SectionKey]: React.ReactNode[] } = {
+      crecimiento: [],
+      riesgo: [],
+      flujo: [],
+      rentabilidad: []
+    };
 
-  const riesgoCards = useMemo(() =>
-    createCardElements(riesgoCardData, cardOrders.riesgo),
-    [createCardElements, riesgoCardData, cardOrders.riesgo]
-  );
+    (Object.keys(allCardData) as SectionKey[]).forEach(sectionKey => {
+      newSectionCards[sectionKey] = createCardElements(allCardData[sectionKey], sectionKey);
+    });
 
-  const flujoCards = useMemo(() =>
-    createCardElements(flujoCardData, cardOrders.flujo),
-    [createCardElements, flujoCardData, cardOrders.flujo]
-  );
+    return newSectionCards;
+  }, [allCardData, createCardElements]);
 
-  const rentabilidadCards = useMemo(() =>
-    createCardElements(rentabilidadCardData, cardOrders.rentabilidad),
-    [createCardElements, rentabilidadCardData, cardOrders.rentabilidad]
-  );
 
   // Initialize card orders when card data changes (only once)
   useEffect(() => {
     const newOrders: Record<SectionKey, string[]> = {
-      crecimiento: crecimientoCardData.map(item => item.id),
-      riesgo: riesgoCardData.map(item => item.id),
-      flujo: flujoCardData.map(item => item.id),
-      rentabilidad: rentabilidadCardData.map(item => item.id)
+      crecimiento: allCardData.crecimiento.map(item => item.id),
+      riesgo: allCardData.riesgo.map(item => item.id),
+      flujo: allCardData.flujo.map(item => item.id),
+      rentabilidad: allCardData.rentabilidad.map(item => item.id)
     };
 
-    // Only update if orders are empty (initial load)
+    // Solo actualizar si las órdenes están vacías (carga inicial)
     setCardOrders(prev => ({
       crecimiento: prev.crecimiento.length === 0 ? newOrders.crecimiento : prev.crecimiento,
       riesgo: prev.riesgo.length === 0 ? newOrders.riesgo : prev.riesgo,
       flujo: prev.flujo.length === 0 ? newOrders.flujo : prev.flujo,
       rentabilidad: prev.rentabilidad.length === 0 ? newOrders.rentabilidad : prev.rentabilidad,
     }));
-  }, []); // Empty dependency array - only run once
+  }, [allCardData]);
 
   // Event handlers
   const toggleSection = useCallback((section: keyof typeof sectionStates) => {
@@ -760,43 +792,21 @@ export default function App() {
   }, []);
 
   // Updated reorder handlers to work with IDs
-  const handleCrecimientoReorder = useCallback((newOrder: React.ReactNode[]) => {
-    // Extract IDs from the React elements
+  const handleReorder = useCallback((section: SectionKey, newOrder: React.ReactNode[]) => {
     const newOrderIds = newOrder.map((element: any) => element.key);
     setCardOrders(prev => ({
       ...prev,
-      crecimiento: newOrderIds
+      [section]: newOrderIds
     }));
-    console.log('Cards reordered in Crecimiento Sostenible section');
+    console.log(`Cards reordered in ${section} section`);
   }, []);
 
-  const handleRiesgoReorder = useCallback((newOrder: React.ReactNode[]) => {
-    const newOrderIds = newOrder.map((element: any) => element.key);
-    setCardOrders(prev => ({
-      ...prev,
-      riesgo: newOrderIds
-    }));
-    console.log('Cards reordered in Riesgo Financiero section');
-  }, []);
-
-  const handleFlujoReorder = useCallback((newOrder: React.ReactNode[]) => {
-    const newOrderIds = newOrder.map((element: any) => element.key);
-    setCardOrders(prev => ({
-      ...prev,
-      flujo: newOrderIds
-    }));
-    console.log('Cards reordered in Flujo de Efectivo section');
-  }, []);
-
-  const handleRentabilidadReorder = useCallback((newOrder: React.ReactNode[]) => {
-    const newOrderIds = newOrder.map((element: any) => element.key);
-    setCardOrders(prev => ({
-      ...prev,
-      rentabilidad: newOrderIds
-    }));
-    console.log('Cards reordered in Rentabilidad del Patrimonio section');
-  }, []);
-
+  const onReorderHandlers: Record<SectionKey, (newOrder: React.ReactNode[]) => void> = {
+    crecimiento: (newOrder) => handleReorder('crecimiento', newOrder),
+    riesgo: (newOrder) => handleReorder('riesgo', newOrder),
+    flujo: (newOrder) => handleReorder('flujo', newOrder),
+    rentabilidad: (newOrder) => handleReorder('rentabilidad', newOrder)
+  };
 
 
   // Calcular valor de empresa dinámicamente
@@ -1078,84 +1088,64 @@ export default function App() {
                         title="CRECIMIENTO SOSTENIBLE"
                         icon={
                           <div className="relative shrink-0 size-8">
-                            <svg className="block size-full" fill="none" viewBox="0 0 32 32">
-                              <path
-                                d={svgPathsDark.p20c62f00}
-                                fill={isDarkMode ? "white" : "#404040"}
-                              />
-                            </svg>
+                            {sections.crecimiento.icon}
                           </div>
                         }
                         isExpanded={sectionStates.crecimiento}
                         onToggleExpansion={() => toggleSection('crecimiento')}
-                        onReorderCards={handleCrecimientoReorder}
+                        onReorderCards={onReorderHandlers.crecimiento}
                         onFilterClick={() => handleFilterClick('crecimiento')}
                         isDarkMode={isDarkMode}
                       >
-                        {crecimientoCards}
+                        {sectionCards.crecimiento}
                       </CarouselSection>
 
                       <CarouselSection
                         title="RIESGO FINANCIERO"
                         icon={
                           <div className="relative shrink-0 size-8">
-                            <svg className="block size-full" fill="none" viewBox="0 0 32 32">
-                              <path
-                                d={svgPathsDark.p5d83c80}
-                                fill={isDarkMode ? "white" : "#404040"}
-                              />
-                            </svg>
+                            {sections.riesgo.icon}
                           </div>
                         }
                         isExpanded={sectionStates.riesgo}
                         onToggleExpansion={() => toggleSection('riesgo')}
-                        onReorderCards={handleRiesgoReorder}
+                        onReorderCards={onReorderHandlers.riesgo}
                         onFilterClick={() => handleFilterClick('riesgo')}
                         isDarkMode={isDarkMode}
                       >
-                        {riesgoCards}
+                        {sectionCards.riesgo}
                       </CarouselSection>
 
                       <CarouselSection
                         title="FLUJO DE EFECTIVO"
                         icon={
                           <div className="relative shrink-0 size-8">
-                            <svg className="block size-full" fill="none" viewBox="0 0 32 32">
-                              <path
-                                d={svgPathsDark.p266f0a80}
-                                fill={isDarkMode ? "white" : "#404040"}
-                              />
-                            </svg>
+                            {sections.flujo.icon}
                           </div>
                         }
                         isExpanded={sectionStates.flujo}
                         onToggleExpansion={() => toggleSection('flujo')}
-                        onReorderCards={handleFlujoReorder}
+                        onReorderCards={onReorderHandlers.flujo}
                         onFilterClick={() => handleFilterClick('flujo')}
                         isDarkMode={isDarkMode}
                       >
-                        {flujoCards}
+                        {sectionCards.flujo}
                       </CarouselSection>
 
                       <CarouselSection
                         title="RENTABILIDAD DEL PATRIMONIO"
                         icon={
                           <div className="relative shrink-0 size-8">
-                            <svg className="block size-full" fill="none" viewBox="0 0 32 32">
-                              <path
-                                d={svgPathsDark.p9a70c80}
-                                fill={isDarkMode ? "white" : "#404040"}
-                              />
-                            </svg>
+                            {sections.rentabilidad.icon}
                           </div>
                         }
                         isExpanded={sectionStates.rentabilidad}
                         onToggleExpansion={() => toggleSection('rentabilidad')}
-                        onReorderCards={handleRentabilidadReorder}
+                        onReorderCards={onReorderHandlers.rentabilidad}
                         onFilterClick={() => handleFilterClick('rentabilidad')}
                         isDarkMode={isDarkMode}
                       >
-                        {rentabilidadCards}
+                        {sectionCards.rentabilidad}
                       </CarouselSection>
 
                     </div>

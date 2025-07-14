@@ -3,11 +3,11 @@ import svgPaths from "../imports/svg-h9t05zbsew";
 
 interface FinancialData {
   dates: string[];
-  values: number[];
-  result: number;
-  // Optional projected values for second row
-  projectedValues?: number[];
-  projectedResult?: number;
+  result: number | string;
+  // Tres filas de datos conceptualmente claras (8 valores cada una = 24 valores total)
+  presupuestadoValues: (number | string)[]; // Fila 1 - Valores presupuestados
+  realValues: (number | string)[]; // Fila 2 - Valores reales/base
+  proyectadoValues?: (number | string)[]; // Fila 3 - Valores proyectados (opcional)
 }
 
 interface FinancialCardProps {
@@ -25,37 +25,17 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
   const filteredData = data.dates
     .map((date, index) => ({
       date,
-      value: data.values[index],
+      presupuestadoValue: data.presupuestadoValues[index],
+      realValue: data.realValues[index],
+      proyectadoValue: data.proyectadoValues ? data.proyectadoValues[index] : undefined,
       index
     }))
     .filter(item => globalSelectedYears.includes(item.date))
     .sort((a, b) => parseInt(a.date) - parseInt(b.date));
 
-  const formatNumber = (num: number): string => {
+  const formatNumber = (num: number | string): string => {
+    if (typeof num === 'string') return num; // Handle '-', 'cargando', etc.
     return new Intl.NumberFormat('es-ES').format(num);
-  };
-
-  // Generar datos para las filas adicionales manteniendo la estructura del CajaFinal
-  const generateRowData = (baseValues: number[], multiplier: number = 1) => {
-    return baseValues.map(value => Math.round(value * multiplier));
-  };
-
-  // Get second row data - use projected values if available, otherwise apply multiplier
-  const getSecondRowData = () => {
-    if (data.projectedValues) {
-      // Use projected values filtered by selected years
-      return data.projectedValues
-        .map((value, index) => ({
-          value,
-          date: data.dates[index]
-        }))
-        .filter(item => globalSelectedYears.includes(item.date))
-        .sort((a, b) => parseInt(a.date) - parseInt(b.date))
-        .map(item => item.value);
-    } else {
-      // Fallback to generated row data with multiplier
-      return generateRowData(filteredData.map(item => item.value), 1.1);
-    }
   };
 
   // Function to format the year display in the selector
@@ -174,68 +154,63 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
             </div>
           </div>
 
-          {/* Primera Fila de Cantidades - ADAPTABLE */}
+          {/* FILA 1 - Primera fila (ceros por defecto) */}
           <div className="h-[34.111px] relative shrink-0 w-full">
             <div className="absolute border-[0px_0px_0.8px] border-dashed financial-card-border-dashed inset-0 pointer-events-none" />
             <div className="flex flex-row items-center relative size-full">
               <div className="box-border content-stretch flex flex-row h-[34.111px] items-center justify-start pb-2 pt-0 px-0 relative w-full">
-
-                {/* Primera cantidad */}
-                <div className="basis-0 grow h-full min-h-px min-w-px relative shrink-0">
-                  <div className="flex flex-row items-center justify-center relative size-full">
-                    <div className="box-border content-stretch flex flex-row gap-2.5 items-center justify-center px-0 py-1 relative size-full">
-                      <div className="font-['Inter:Regular',_sans-serif] font-normal leading-[0] not-italic relative shrink-0 text-[#2e649d] dark:text-[#3acfff] text-[12px] text-left text-nowrap">
-                        <p className="block leading-[normal] whitespace-pre">
-                          {filteredData.length > 0 ? formatNumber(filteredData[0].value) : '147.950'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Cantidades del medio (repetir el patrón del diseño) */}
-                {filteredData.slice(1, -1).map((item, index) => (
-                  <div key={`cantidad-${index}`} className="basis-0 financial-card-transparent-bg grow h-full min-h-px min-w-px relative shrink-0">
+                {filteredData.map((item, index) => (
+                  <div key={`presupuestado-${item.date}`} className={`basis-0 ${index > 0 ? 'financial-card-transparent-bg' : ''} grow h-full min-h-px min-w-px relative shrink-0`}>
                     <div className="flex flex-row items-center justify-center relative size-full">
                       <div className="box-border content-stretch flex flex-row gap-2.5 items-center justify-center px-0 py-1 relative size-full">
                         <div className="font-['Inter:Regular',_sans-serif] font-normal leading-[0] not-italic relative shrink-0 text-[#2e649d] dark:text-[#3acfff] text-[12px] text-left text-nowrap">
-                          <p className="block leading-[normal] whitespace-pre">{formatNumber(item.value)}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Última cantidad */}
-                {filteredData.length > 1 && (
-                  <div className="basis-0 financial-card-transparent-bg grow h-full min-h-px min-w-px relative shrink-0">
-                    <div className="flex flex-row items-center justify-center relative size-full">
-                      <div className="box-border content-stretch flex flex-row gap-2.5 items-center justify-center p-[4px] relative size-full">
-                        <div className="font-['Inter:Regular',_sans-serif] font-normal leading-[0] not-italic relative shrink-0 text-[#2e649d] dark:text-[#3acfff] text-[12px] text-left text-nowrap">
                           <p className="block leading-[normal] whitespace-pre">
-                            {formatNumber(filteredData[filteredData.length - 1].value)}
+                            {formatNumber(item.presupuestadoValue)}
                           </p>
                         </div>
                       </div>
                     </div>
                   </div>
-                )}
+                ))}
               </div>
             </div>
           </div>
 
-          {/* Segunda Fila de Cantidades - BASE o PROYECTADA */}
+          {/* FILA 2 - Segunda fila (valores base/originales) */}
           <div className="h-[34.111px] relative shrink-0 w-full">
             <div className="absolute border-[0px_0px_0.8px] border-dashed financial-card-border-dashed inset-0 pointer-events-none" />
             <div className="flex flex-row items-center relative size-full">
               <div className="box-border content-stretch flex flex-row h-[34.111px] items-center justify-start pb-2 pt-0 px-0 relative w-full">
-
-                {getSecondRowData().map((value, index) => (
-                  <div key={`row2-${index}`} className={`basis-0 ${index === 0 ? '' : 'financial-card-transparent-bg'} grow h-full min-h-px min-w-px relative shrink-0`}>
+                {filteredData.map((item, index) => (
+                  <div key={`real-${item.date}`} className={`basis-0 ${index > 0 ? 'financial-card-transparent-bg' : ''} grow h-full min-h-px min-w-px relative shrink-0`}>
                     <div className="flex flex-row items-center justify-center relative size-full">
-                      <div className={`box-border content-stretch flex flex-row gap-2.5 items-center justify-center ${index < 2 ? 'px-0 py-1' : 'p-[4px]'} relative size-full`}>
+                      <div className="box-border content-stretch flex flex-row gap-2.5 items-center justify-center px-0 py-1 relative size-full">
                         <div className="font-['Inter:Regular',_sans-serif] font-normal leading-[0] not-italic relative shrink-0 text-[#2e649d] dark:text-[#3acfff] text-[12px] text-left text-nowrap">
-                          <p className="block leading-[normal] whitespace-pre">{formatNumber(value)}</p>
+                          <p className="block leading-[normal] whitespace-pre">
+                            {formatNumber(item.realValue)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* FILA 3 - Tercera fila (valores proyectados) - UPDATED to handle '-' for historical years */}
+          <div className="h-[34.111px] relative shrink-0 w-full">
+            <div className="absolute border-[0px_0px_0.8px] border-dashed financial-card-border-dashed inset-0 pointer-events-none" />
+            <div className="flex flex-row items-center relative size-full">
+              <div className="box-border content-stretch flex flex-row h-[34.111px] items-center justify-start pb-2 pt-0 px-0 relative w-full">
+                {filteredData.map((item, index) => (
+                  <div key={`proyectado-${item.date}`} className={`basis-0 ${index > 0 ? 'financial-card-transparent-bg' : ''} grow h-full min-h-px min-w-px relative shrink-0`}>
+                    <div className="flex flex-row items-center justify-center relative size-full">
+                      <div className={`box-border content-stretch flex flex-row gap-2.5 items-center justify-center px-0 py-1 relative size-full`}>
+                        <div className="font-['Inter:Regular',_sans-serif] font-normal leading-[0] not-italic relative shrink-0 text-[#2e649d] dark:text-[#3acfff] text-[12px] text-left text-nowrap">
+                          <p className="block leading-[normal] whitespace-pre">
+                            {formatNumber(item.proyectadoValue ?? '-')}
+                          </p>
                         </div>
                       </div>
                     </div>

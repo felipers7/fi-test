@@ -8,7 +8,7 @@ interface SidebarProps {
   selectedYears: string[];
   isDarkMode?: boolean;
   globalParameters?: any;
-  projectionFormulas?: { [year: string]: string };
+  projectionFormulas?: { [formulaType: string]: string }; // UPDATED: Generic formulas, not year-specific
   isLoadingGlobalParametros?: boolean;
   isLoadingFormulas?: boolean;
 }
@@ -200,36 +200,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return parameters.utilidad.values[year] || 0;
   }, [parameters.utilidad.values]);
 
-  // Function to evaluate projection formula (utilidad_basica * param)
-  const evaluateProjection = useCallback((year: string): number => {
-    const baseValue = getBaseValue(year);
+  // UPDATED: New projection evaluation using previous year's REAL value as base
+  const evaluateProjection = useCallback((currentYear: string): number | string => {
+    const currentYearNum = parseInt(currentYear);
 
-    // Each year uses only its specific parameter, but formula can use fallback
-    const paramValue = parameters.utilidad.proyecciones[year];
-    const formula = projectionFormulas[year] ||
-      getLatestAvailable(projectionFormulas, year) ||
-      "utilidad_basica * param"; // default formula if none found
+    // NEW RULE: Projection only works for 2025 onward
+    if (currentYearNum < 2025) {
+      return '-'; // Show dash for historical years where projection is impossible
+    }
 
-    // If no specific parameter for this year, return base value (no projection)
+    const previousYear = (currentYearNum - 1).toString();
+
+    // Get the REAL value from previous year as base (not the current year)
+    const baseValue = parameters.utilidad.values[previousYear] || 0;
+
+    // Get the projection parameter for the current year
+    const paramValue = parameters.utilidad.proyecciones[currentYear];
+
+    // Get the generic formula (not year-specific anymore)
+    const formula = projectionFormulas['utilidad_basica_proyeccion'] ||
+      "base * (param / 100) + 250000"; // Updated default formula
+
+    // If no parameter for this year or no base value, return dash
     if (!paramValue || baseValue === 0) {
-      return baseValue;
+      return '-';
     }
 
     try {
-      // Simple evaluation by replacing keywords
+      // NEW: Evaluate formula using previous year's REAL value as base
       let evaluatedFormula = formula
-        .replace(/utilidad_basica/g, baseValue.toString())
-        .replace(/param/g, (paramValue / 100).toString());
+        .replace(/base/g, baseValue.toString()) // Use previous year's REAL value
+        .replace(/param/g, paramValue.toString()); // Use current year's parameter
 
-      // Use eval for simple mathematical expressions (be careful with this in production)
+      console.log(`Sidebar Projection for ${currentYear}: base=${baseValue} (from ${previousYear}), param=${paramValue}, formula="${formula}" -> "${evaluatedFormula}"`);
+
+      // Use eval for simple mathematical expressions
       const result = eval(evaluatedFormula);
-      console.log(`Sidebar Projection Year ${year}: ${formula} -> ${evaluatedFormula} = ${result}`);
       return Math.round(result);
     } catch (error) {
       console.error('Sidebar formula evaluation error:', error);
-      return baseValue;
+      return '-'; // Return dash if formula fails
     }
-  }, [getBaseValue, parameters.utilidad.proyecciones, projectionFormulas, getLatestAvailable]);
+  }, [parameters.utilidad.values, parameters.utilidad.proyecciones, projectionFormulas]);
 
   // No need to fetch data - using global parameters from props
 
@@ -242,7 +254,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     console.log('Local projection parameters changed, triggering sidebar update');
   }, [parameters.utilidad.proyecciones]);
 
-  // COMPUTED: Filtrar años y datos basados en selectedYears
+  // COMPUTED: Filtrar años y datos basados en selectedYears - UPDATED projection logic
   const filteredYearData = useMemo(() => {
     const sortedYears = [...selectedYears].sort();
     console.log('Recomputing filteredYearData, updateTrigger:', updateTrigger);
@@ -251,7 +263,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       utilidadValues: sortedYears.map(year => ({
         year,
         baseValue: getBaseValue(year), // BASE: Just the base value from utilidad API
-        projectedValue: evaluateProjection(year) // PROJECTED: Base value * param formula
+        projectedValue: evaluateProjection(year) // PROJECTED: Using new logic with previous year's base
       })),
       crecimientosValues: sortedYears.map(year => ({
         year,
@@ -420,29 +432,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {/* Resultado principal */}
                   <div className={`py-3 border-b-2 border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
                     }`}>
-                    <div className="flex justify-center flex-col">
+                    <div className="flex justify-center flex-col space-y-2">
                       <div className="text-center">
-                        <span className={`text-2xl font-bold ${isDarkMode ? 'text-[#ff2e2e]' : 'text-[#b00020]'
+                        <span className={`text-lg font-bold ${isDarkMode ? 'text-[#ff2e2e]' : 'text-[#b00020]'
                           }`}>
-                          BASE: {isLoadingUtilidad ? 'Cargando...' : (parameters.utilidad.result || 0).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="text-center mt-2">
-                        <span className={`text-2xl font-bold ${isDarkMode ? 'text-[#3ABE76]' : 'text-[#1a6e31]'
-                          }`}>
-                          PROY: {isLoadingUtilidad || isLoadingFormulas ? 'Cargando...' :
-                            filteredYearData.utilidadValues.reduce((sum, item) => sum + item.projectedValue, 0).toLocaleString()}
+                          RESULTADO: {isLoadingUtilidad ? 'Cargando...' : (parameters.utilidad.result || 0).toLocaleString()}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Valores base por año */}
+                  {/* FILA 1 - Primera fila (ceros) */}
                   <div className={`py-3 border-b border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
                     }`}>
                     <div className="flex justify-between items-center">
                       <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`}>
-                        BASE
+                        PRESUPUESTADO
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center mt-2">
+                      {filteredYearData.years.map(year => (
+                        <div key={year} className="flex-1 text-center">
+                          <span className={`text-base font-semibold ${isDarkMode ? 'text-[#3acfff]' : 'text-[#2e649d]'
+                            }`}>
+                            0
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* FILA 2 - Valores base por año */}
+                  <div className={`py-3 border-b border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
+                    }`}>
+                    <div className="flex justify-between items-center">
+                      <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`}>
+                        REAL
                       </span>
                     </div>
                     <div className="flex justify-between items-center mt-2">
@@ -457,7 +482,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </div>
                   </div>
 
-                  {/* Valores proyectados por año */}
+                  {/* FILA 3 - Valores proyectados por año - UPDATED display logic */}
                   <div className={`py-3 border-b-2 border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
                     }`}>
                     <div className="flex justify-between items-center">
@@ -470,7 +495,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <div key={year} className="flex-1 text-center">
                           <span className={`text-base font-bold ${isDarkMode ? 'text-[#3ABE76]' : 'text-[#1a6e31]'
                             }`}>
-                            {isLoadingUtilidad || isLoadingFormulas ? '...' : projectedValue.toLocaleString()}
+                            {isLoadingUtilidad || isLoadingFormulas ? '...' :
+                              (typeof projectedValue === 'string' ? projectedValue : projectedValue.toLocaleString())}
                           </span>
                         </div>
                       ))}
