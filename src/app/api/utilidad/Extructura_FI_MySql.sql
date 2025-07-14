@@ -383,28 +383,103 @@ INSERT INTO formulas (fmls_codigo, fmls_desc, fmls_body) VALUES
    '400001' + '500001' + '400002' + '500003' + '500004' + '400003')
   / 'p_UNID_MED"
 ) - ('500005' / 'p_UNID_MED')'),
-    (10002, 'utilidad_operacional', 'SUM("400000") - SUM("600000")'),
-    (10003, 'utilidad_neta',        '(SUM("400000") - SUM("600000")) * 0.8'),
-    (10004, 'patrimonio',           'SUM("100000") - SUM("200000")'),
-    (10005, 'liquidez_ratio',       'SUM("100000") / SUM("200000")'),
-    (10006, 'rentabilidad',         '(SUM("400000") - SUM("600000")) / SUM("100000") * 100'),
-    (10007, 'promedio_activos',     'AVG("100000")'),
-    (10008, 'total_cuentas',        'COUNT("100000") + COUNT("200000")'),
-    (10009, 'activo_maximo',        'MAX("100000")'),
-    (10010, 'roi',                  '(SUM("400000") - SUM("600000")) / SUM("100000") * 100'),
-    (10011, 'debt_ratio',           'SUM("200000") / SUM("100000")'),
-    (10012, 'profit_margin',        '(SUM("400000") - SUM("600000")) / SUM("400000") * 100'),
-    (10013, 'complex_formula',      '(SUM("100000") * 1.2) - (SUM("200000") * 0.8) + (SUM("400000") - SUM("600000")) / 2'),
-    (10014, 'utilidad_con_parametro', '(SUM("100000") - SUM("200000")) * "p_PROY_UTIL"'),
-    (10015, 'formula_mixta',        'SUM("100000") * "p_PROY_UTIL" + SUM("200000") * "p_EV_ABR"'),
-    (10016, 'solo_parametros',      '"p_PROY_UTIL" * "p_EV_ABR" * 1000');
+    (10002, 'ventas', "'800001'/ p_UNID_MED"),
+    (10003, 'INTERESES A OPERACIONAL',"'500002' / p_UNID_MED" ),
+    (10004, 'CREACION VALOR', ""),
+    (10005, 'EBITDA', "(('800001' + '800002' + '700001' + '600001' + '600002' + '600003' - '700001' - '600003') / p_UNID_MED) -(- '700001' / p_UNID_MED - '600003' / p_UNID_MED)"),
+    (10006, 'VALOR DEUDA', "('200001' + '200007') / p_UNID_MED)"),
+    (10007, 'VALOR PATRIMONIO', "('300001' + '300002' + '300003' + '300004') / p_UNID_MED"),
+    (10008, 'CRECIMIENTO PATRIMONIO', "(('300001' + '300002' + '300003' + '300004') - ('300001_ant' + '300002_ant' + '300003_ant' + '300004_ant')) / ('300001_ant + '300002_ant' + '300003_ant' + '300004_ant')"),
+    (10009, 'RENTABILIDAD DEL CAPITAL', "(
+ (
+  '800001'
+  + ('800002' + '700001')
+  + '600001'
+  + ('600002' + '600003')
+  + (-'700001' - '600003')
+ )
+)
+/
+(
+ (
+  '100001'
+  + ('100003' + '100007' + '100005')
+  + '100011'
+  + '100009'
+  + '100012'
+  + '100013'
+  + ('100016' + '100017' + '100018' + '100019' + '100014')
+  + [ '100015'
+      - (
+          (
+           (-'700001_ant' - '600003_ant')
+           + (-'700001_ant' - '600003_ant')
+           + (-'700001' - '600003')
+          )
+          + 
+          ( 
+            (-'700001' - '600003')
+            - 
+            (-'700001' - '600003')_ant
+          )
+        )
+    ]
+  + [ 
+      (
+       (-'700001_ant' - '600003_ant')
+       + (-'700001_ant' - '600003_ant')
+       + (-'700001' - '600003')
+      )
+      + 
+      ( 
+        (-'700001' - '600003')
+        - 
+        (-'700001' - '600003_ant')
+      )
+    ]
+ )
+)
+/
+p_UNID_MED
+)"),
+(10009,'ROTACIÓN DE ACTIVOS' , "(
+ '800001'
+)
+/
+(
+ '100001'
+ + ('100003' + '100007' + '100005')
+ + '100011'
+ + '100009'
+ + '100012'
+ + '100013'
+ + ('100016' + '100017' + '100018' + '100019' + '100014')
+ + [ '100015'
+     - (
+         ((-'700001_ant' - '600003_ant')
+         + (-'700001_ant' - '600003_ant')
+         + (-'700001' - '600003'))
+         + 
+         ( (-'700001' - '600003') - (-'700001' - '600003')_ant )
+       )
+   ]
+ + [ 
+      ((-'700001_ant' - '600003_ant')
+      + (-'700001_ant' - '600003_ant')
+      + (-'700001' - '600003'))
+      + 
+      ( (-'700001' - '600003') - (-'700001' - '600003')_ant )
+   ]
+)
+/
+p_UNID_MED"),
 
 
 
 
 INSERT INTO formulas (fmls_codigo, fmls_desc, fmls_body) VALUES
     (90001, 'utilidad_basica_proyeccion', 'base * (param / 100) + 250000'),
-    (90002, 'utilidad_basica_proyeccion', 'base * param');
+    (90002, 'ventas_proyeccion',"(base * PROY_VENTAS) + base" );
 
 
 
@@ -414,14 +489,14 @@ create table parametros(
   prmt_codigo VARCHAR(255) NOT NULL,
   prmt_desc TEXT NOT NULL,
   prmt_valor decimal(18,2) NOT NULL,
-  PRIMARY KEY (prmt_id),
+  prmt_ano int,
+  PRIMARY KEY (prmt_id)
 );
 
 insert into parametros (prmt_id,prmt_codigo, prmt_desc, prmt_valor ,prmt_ano) values 
-('EV_ABR', 'estacionalidad ventas', 0.1,null),
-('UNID_MED', 'unidad medida', 0.8,null),
-('PROY_UTIL', 'proyeccion utilidad', 0.8,,2025),
-('PROY_UTIL', 'proyeccion utilidad', 0.85,2026),
-('PROY_UTIL', 'proyeccion utilidad', 0.9,2027),
-('PROY_UTIL', 'proyeccion utilidad', 0.95,2029);
-
+(10001,'EV_ABR', 'estacionalidad ventas', 0.1,null),
+(10002,'UNID_MED', 'unidad medida', 1000,null),
+(10003,'PROY_UTIL', 'proyeccion utilidad', 0.8,2025),
+(10004,'PROY_UTIL', 'proyeccion utilidad', 0.85,2026),
+(10005,'PROY_UTIL', 'proyeccion utilidad', 0.9,2027),
+(10006,'PROY_UTIL', 'proyeccion utilidad', 0.95,2029);
