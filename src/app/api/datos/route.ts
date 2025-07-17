@@ -22,6 +22,10 @@ async function connectToDatabase() {
     }
 }
 
+
+//parametros para formulas de anterior / 2024 / reales
+//parametros para formulas proyección
+
 // Parse formula to extract both account codes and parameter codes
 function parseCodesFromFormula(formula: string): { accountCodes: string[], parameterCodes: string[] } {
     const accountCodes = new Set<string>();
@@ -75,7 +79,7 @@ function preprocessFormula(formula: string): string {
 }
 
 // Get formula from database (case insensitive)
-async function getFormulaFromDB(formulaName: string): Promise<string> {
+async function getFormulaFromDB(formulaName: string): Promise<string | null> {
     const connection = await connectToDatabase();
 
     try {
@@ -90,7 +94,8 @@ async function getFormulaFromDB(formulaName: string): Promise<string> {
         await connection.end();
 
         if (rows.length === 0) {
-            throw new Error(`Formula ${formulaName} not found in database`);
+            console.warn(`Formula ${formulaName} not found in database`);
+            return null; // Return null instead of throwing error
         }
 
         console.log(`Found formula: ${rows[0].fmls_body}`);
@@ -98,7 +103,7 @@ async function getFormulaFromDB(formulaName: string): Promise<string> {
     } catch (error) {
         await connection.end();
         console.error('Failed to get formula from database:', error);
-        throw error;
+        return null; // Return null instead of throwing error
     }
 }
 
@@ -208,6 +213,7 @@ async function getFinancialDataOptimized(startYear: number, endYear: number, acc
         console.error('Database query failed:', error);
         throw error;
     }
+
 }
 
 // Replace parameter references in formula with actual values
@@ -309,7 +315,7 @@ async function evaluateDatabaseFormula(allData: any[], year: number, formulaStri
         return result;
     } catch (error) {
         console.error(`Error evaluating: "${processedFormula}"`, error);
-        return 0;
+        return -1; // Return -1 instead of 0 for failed calculations
     }
 }
 
@@ -328,8 +334,30 @@ export async function GET(request: Request) {
         const rawFormula = await getFormulaFromDB(formulaName);
 
         if (!rawFormula) {
-            throw new Error(`No formula found for ${formulaName}`);
+            // Return -1 for all years when formula doesn't exist
+            const years = [];
+            const values = [];
+            for (let year = startYear; year <= endYear; year++) {
+                years.push(year.toString());
+                values.push(-1);
+            }
+
+            return NextResponse.json({
+                success: true,
+                data: {
+                    dates: years,
+                    values: values,
+                    result: -1,
+                    formula: null,
+                    originalFormula: null,
+                    method: 'formula_not_found',
+                    formula_name: formulaName,
+                    warning: `Formula '${formulaName}' not found in database`
+                }
+            });
         }
+
+        //eval 
 
         // 2. Preprocess formula to fix syntax and convert account codes to SUM() functions
         const formula = preprocessFormula(rawFormula);

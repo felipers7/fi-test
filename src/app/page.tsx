@@ -1,6 +1,5 @@
 "use client"
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { BarChart, TrendingUp, DollarSign, PieChart } from 'lucide-react';
 import { CarouselSection } from '../components/CarouselSection';
 import { FinancialCard } from '../components/FinancialCard';
 import { GlobalYearSelector } from '../components/GlobalYearSelector';
@@ -10,1164 +9,809 @@ import { UserDropdown } from '../components/UserDropdown';
 import { SectionFilter } from '../components/SectionFilter';
 import { Sidebar } from '../components/Sidebar';
 import { DnDProviderWrapper } from '../components/DnDProvider';
-import ExpandIcon from '../imports/ExpandIcon';
-import svgPaths from "../imports/svg-kyrm2ff689";
+import { fetchCardData, processCardData, SECTION_CARD_TITLES, FinancialCardData, CardDataInterface } from '../services/cardDataService';
 import svgPathsDark from "../imports/svg-ec6iy79qbc";
-
-// Tipo unificado para los datos de las tarjetas financieras
-interface FinancialCardData {
-  id: string;
-  title: string;
-  data: {
-    dates: string[];
-    result: number | string;
-    // Tres filas de datos conceptualmente claras (8 valores cada una = 24 valores total)
-    presupuestadoValues: (number | string)[]; // Fila 1 - Valores presupuestados
-    realValues: (number | string)[]; // Fila 2 - Valores reales/base
-    proyectadoValues?: (number | string)[]; // Fila 3 - Valores proyectados (opcional)
-  };
-}
-
-// Datos de ejemplo para las tarjetas
-const mockFinancialData: Omit<FinancialCardData, 'id' | 'title'>['data'] = {
-  dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
-  realValues: [147950, 147950, 177540, 177540, 230802, 235000, 245000, 255000], // Valores reales van a realValues
-  result: 15376,
-  presupuestadoValues: Array(8).fill(0), // Valores presupuestados (ceros por defecto)
-  proyectadoValues: [162745, 162745, 195294, 195294, 253882, 258500, 269500, 280500] // Valores proyectados (10% más que realValues)
-};
-
-// Helper para generar datos de ejemplo
-const createMockData = (values: number[], result: number) => ({
-  dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
-  realValues: values, // Valores reales van a realValues
-  result,
-  presupuestadoValues: Array(8).fill(0), // Valores presupuestados (ceros por defecto)
-  proyectadoValues: values.map(v => Math.round(v * 1.1)) // Valores proyectados (10% más que realValues)
-});
-
-const mockData3 = createMockData([95000, 105000, 115000, 125000, 135000, 145000, 155000, 165000], 12500);
-const mockData4 = createMockData([110000, 125000, 140000, 155000, 170000, 185000, 200000, 215000], 16750);
-const mockData5 = createMockData([85000, 95000, 105000, 115000, 125000, 135000, 145000, 155000], 11200);
-const mockData6 = createMockData([75000, 85000, 95000, 105000, 115000, 125000, 135000, 145000], 10300);
-const mockData7 = createMockData([130000, 145000, 160000, 175000, 190000, 205000, 220000, 235000], 19500);
-const mockData8 = createMockData([100000, 115000, 130000, 145000, 160000, 175000, 190000, 205000], 14800);
-const mockData9 = createMockData([90000, 100000, 110000, 120000, 130000, 140000, 150000, 160000], 13200);
-
 
 // Define section filter states
 interface SectionFilters {
-  selectedYears: string[];
-  selectedCategories: string[];
+    selectedYears: string[];
+    selectedCategories: string[];
 }
 
 type SectionKey = 'crecimiento' | 'riesgo' | 'flujo' | 'rentabilidad';
 
 
 
+
+
+
+
 // Updated year ranges - 1 año now starts from 2025, matching GlobalYearSelector
 const YEAR_RANGES = [
-  {
-    id: 'short',
-    label: '1 año',
-    years: ['2025']
-  },
-  {
-    id: 'two-year',
-    label: '2 años',
-    years: ['2024', '2025']
-  },
-  {
-    id: 'medium',
-    label: '3 años',
-    years: ['2024', '2025', '2026']
-  },
-  {
-    id: 'standard',
-    label: '4 años',
-    years: ['2024', '2025', '2026', '2027']
-  },
-  {
-    id: 'extended',
-    label: '5 años',
-    years: ['2024', '2025', '2026', '2027', '2028']
-  },
-  {
-    id: 'comprehensive',
-    label: '6 años',
-    years: ['2024', '2025', '2026', '2027', '2028', '2029']
-  }
+    {
+        id: 'short',
+        label: '1 año',
+        years: ['2025']
+    },
+    {
+        id: 'two-year',
+        label: '2 años',
+        years: ['2024', '2025']
+    },
+    {
+        id: 'medium',
+        label: '3 años',
+        years: ['2024', '2025', '2026']
+    },
+    {
+        id: 'standard',
+        label: '4 años',
+        years: ['2024', '2025', '2026', '2027']
+    },
+    {
+        id: 'extended',
+        label: '5 años',
+        years: ['2024', '2025', '2026', '2027', '2028']
+    },
+    {
+        id: 'comprehensive',
+        label: '6 años',
+        years: ['2024', '2025', '2026', '2027', '2028', '2029']
+    }
 ];
 
 export default function App() {
-  // Estado para datos de utilidad - start with null to avoid showing stale data
-  const [utilidadData, setUtilidadData] = useState<any>(null);
-  const [isLoadingUtilidad, setIsLoadingUtilidad] = useState(true);
-
-  // Global parameter states (shared between Sidebar and main page)
-  const [globalParameters, setGlobalParameters] = useState({
-    utilidad: {
-      values: {} as { [year: string]: number },
-      result: 0,
-      proyecciones: {} as { [year: string]: number }
-    },
-    crecimientosVenta: {
-      values: {} as { [year: string]: number },
-      proyeccion: 10
-    },
-    inversiones: {
-      values: {} as { [year: string]: number },
-      proyeccion: 10
-    },
-    vidaUtilActivos: {
-      valor: "10 años"
-    }
-  });
-
-  // Loading states for global parameters
-  const [isLoadingGlobalParametros, setIsLoadingGlobalParametros] = useState(true);
-  const [isLoadingFormulas, setIsLoadingFormulas] = useState(true);
-
-  // Projection formulas state - UPDATED: Now stores generic formulas, not year-specific
-  const [projectionFormulas, setProjectionFormulas] = useState<{ [formulaType: string]: string }>({});
-
-  // Dynamic mockData2 that gets replaced by API data
-  const mockData2 = useMemo(() => {
-    // Si no hay datos de la API, se muestra un estado de carga.
-    if (!utilidadData) {
-      return {
-        dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
-        presupuestadoValues: Array(8).fill(0), // Primera fila - ceros
-        realValues: Array(8).fill("cargando"), // Segunda fila - estado de carga
-        proyectadoValues: Array(8).fill("cargando"), // Tercera fila - estado de carga
-        result: "cargando"
-      };
-    }
-    return {
-      ...utilidadData,
-      presupuestadoValues: Array(8).fill(0), // Primera fila - ceros
-      realValues: utilidadData.values || Array(8).fill("cargando"), // Segunda fila - datos de API
-      proyectadoValues: utilidadData.values ? utilidadData.values.map((v: any) =>
-        typeof v === 'string' ? v : Math.round(v * 1.1)
-      ) : Array(8).fill("cargando") // Tercera fila - datos procesados
-    };
-  }, [utilidadData]);
-
-  // Debug effect to track utilidadData changes
-  useEffect(() => {
-    console.log('utilidadData state changed:', utilidadData);
-    console.log('mockData2 (dynamic) state changed:', mockData2);
-    console.log('isLoadingUtilidad:', isLoadingUtilidad);
-  }, [utilidadData, mockData2, isLoadingUtilidad]);
-
-  const fetchUtilidadData = async () => {
-    try {
-      console.log('Fetching utilidad data...');
-      setIsLoadingUtilidad(true);
-
-      // Add cache busting and no-cache headers
-      const response = await fetch('/api/utilidad?startYear=2022&endYear=2029&formula=utilidad_basica', {
-        method: 'GET',
-        cache: 'no-store'
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('API response:', result);
-
-        if (result.success && result.data) {
-          console.log("Setting utilidad data:", result.data);
-          // Set the display data
-          setUtilidadData({ ...result.data });
-
-          // Also populate global parameters
-          const { dates, values, result: totalResult } = result.data;
-          const valuesByYear: { [year: string]: number } = {};
-          dates.forEach((year: string, index: number) => {
-            valuesByYear[year] = values[index];
-          });
-
-          setGlobalParameters(prev => ({
-            ...prev,
-            utilidad: {
-              ...prev.utilidad,
-              values: valuesByYear,
-              result: totalResult
-            }
-          }));
-        } else {
-          console.warn('API returned unsuccessful response:', result);
-          setUtilidadData(null); // Usar null para indicar que la carga falló
-        }
-      } else {
-        console.warn(`API request failed with status ${response.status}: ${response.statusText}`);
-        // En lugar de intentar leer el texto del error, simplemente continuamos
-        setUtilidadData(null); // Usar null para indicar que la carga falló
-      }
-    } catch (error) {
-      console.warn('Failed to fetch utilidad data (DB may be offline):', error);
-      setUtilidadData(null); // Usar null para indicar que la carga falló
-    } finally {
-      setIsLoadingUtilidad(false);
-      console.log('Finished fetching utilidad data');
-    }
-  };
-
-  // Fetch projection parameters from API
-  const fetchGlobalParametros = useCallback(async () => {
-    try {
-      setIsLoadingGlobalParametros(true);
-      const response = await fetch('/api/parametros?prmt_codigo=PROY_UTIL');
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.data && result.data.parametros) {
-          const proyecciones: { [year: string]: number } = {};
-
-          result.data.parametros.forEach((param: any) => {
-            if (param.prmt_ano) {
-              proyecciones[param.prmt_ano.toString()] = param.prmt_valor;
-            }
-          });
-
-          setGlobalParameters(prev => ({
-            ...prev,
-            utilidad: {
-              ...prev.utilidad,
-              proyecciones: proyecciones
-            }
-          }));
-        } else {
-          console.warn('Parametros API returned unsuccessful response:', result);
-        }
-      } else {
-        console.warn(`Parametros API request failed with status ${response.status}: ${response.statusText}`);
-      }
-    } catch (error) {
-      console.warn('Failed to fetch global parametros data (DB may be offline):', error);
-    } finally {
-      setIsLoadingGlobalParametros(false);
-    }
-  }, []);
-
-  // Fetch projection formulas from API - UPDATED: Get generic formulas
-  const fetchProjectionFormulas = useCallback(async () => {
-    try {
-      setIsLoadingFormulas(true);
-      const response = await fetch('/api/formulas?fmls_desc=utilidad_basica_proyeccion');
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.data && result.data.formulas) {
-          const formulas: { [formulaType: string]: string } = {};
-
-          result.data.formulas.forEach((formula: any) => {
-            // Store formulas by description/type, not by year
-            if (formula.fmls_desc) {
-              formulas[formula.fmls_desc] = formula.fmls_body;
-            }
-          });
-
-          setProjectionFormulas(formulas);
-          console.log('Loaded generic projection formulas:', formulas);
-        } else {
-          console.warn('Formulas API returned unsuccessful response:', result);
-        }
-      } else {
-        console.warn(`Formulas API request failed with status ${response.status}: ${response.statusText}`);
-      }
-    } catch (error) {
-      console.warn('Failed to fetch projection formulas (DB may be offline):', error);
-    } finally {
-      setIsLoadingFormulas(false);
-    }
-  }, []);
-
-
-  // Fetch utilidad data on mount
-  useEffect(() => {
-    fetchUtilidadData();
-    fetchGlobalParametros();
-    fetchProjectionFormulas();
-  }, [fetchGlobalParametros, fetchProjectionFormulas]);
-
-  // Estados principales
-  const [sectionStates, setSectionStates] = useState({
-    crecimiento: false,
-    riesgo: false,
-    flujo: false,
-    rentabilidad: false
-  });
-
-  // Updated default to 4 years (2024-2027) - keeping the standard recommendation
-  const [globalSelectedYears, setGlobalSelectedYears] = useState<string[]>(['2024', '2025', '2026', '2027']);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [hasNotifications, setHasNotifications] = useState(true);
-  const [notificationCount, setNotificationCount] = useState(3);
-  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
-
-  // Estado del sidebar
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  // Estados para los parámetros que afectan las cards
-  const [financialParameters, setFinancialParameters] = useState({
-    utilidad: {
-      multiplicador: 1,
-      crecimiento: 0
-    },
-    crecimientosVenta: {
-      porcentaje: 10
-    },
-    inversiones: {
-      porcentaje: 10
-    }
-  });
-
-  // Updated section filters to match new year range
-  const [sectionFilters, setSectionFilters] = useState<Record<SectionKey, SectionFilters>>({
-    crecimiento: {
-      selectedYears: ['2024', '2025', '2026', '2027'],
-      selectedCategories: []
-    },
-    riesgo: {
-      selectedYears: ['2024', '2025', '2026', '2027'],
-      selectedCategories: []
-    },
-    flujo: {
-      selectedYears: ['2024', '2025', '2026', '2027'],
-      selectedCategories: []
-    },
-    rentabilidad: {
-      selectedYears: ['2024', '2025', '2026', '2027'],
-      selectedCategories: []
-    }
-  });
-
-  const [filterModal, setFilterModal] = useState<{
-    isOpen: boolean;
-    section: SectionKey | null;
-  }>({
-    isOpen: false,
-    section: null
-  });
-
-  // Estados para el orden de las cards en cada sección - usando IDs en lugar de React elements
-  const [cardOrders, setCardOrders] = useState<Record<SectionKey, string[]>>({
-    crecimiento: [],
-    riesgo: [],
-    flujo: [],
-    rentabilidad: []
-  });
-
-  // Función para calcular el valor de la empresa basado en los años seleccionados
-  const calculateCompanyValue = useCallback((selectedYears: string[]): number => {
-    const baseValue = 7506;
-    const yearMultiplier = selectedYears.length * 0.15; // 15% adicional por cada año
-    const futureYearsBonus = selectedYears.filter(year => parseInt(year) > 2025).length * 0.25; // 25% adicional por años futuros
-
-    return Math.round(baseValue * (1 + yearMultiplier + futureYearsBonus));
-  }, []);
-
-  // Helper function to get latest available value when year not found
-  const getLatestAvailable = useCallback((obj: { [key: string]: any }, targetYear: string): any => {
-    if (obj[targetYear]) return obj[targetYear];
-
-    // Get all available years, sort them, and find the latest one that's <= targetYear
-    const availableYears = Object.keys(obj).sort((a, b) => parseInt(b) - parseInt(a));
-    return obj[availableYears[0]] || null;
-  }, []);
-
-  // Function to get base value (just utilidad_basica, no additional formula)
-  const getBaseValue = useCallback((year: string): number => {
-    return globalParameters.utilidad.values[year] || 0;
-  }, [globalParameters.utilidad.values]);
-
-  // UPDATED: New projection evaluation using previous year's REAL value as base
-  const evaluateProjection = useCallback((currentYear: string): number | string => {
-    const currentYearNum = parseInt(currentYear);
-
-    // NEW RULE: Projection only works for 2025 onward
-    if (currentYearNum < 2025) {
-      return '-'; // Show dash for historical years where projection is impossible
-    }
-
-    const previousYear = (currentYearNum - 1).toString();
-
-    // Get the REAL value from previous year as base (not the current year)
-    const baseValue = globalParameters.utilidad.values[previousYear] || 0;
-
-    // Get the projection parameter for the current year
-    const paramValue = globalParameters.utilidad.proyecciones[currentYear];
-
-    // Get the generic formula (not year-specific anymore)
-    const formula = projectionFormulas['utilidad_basica_proyeccion'] || "base * (param / 100) + 250000";
-
-    // If no parameter for this year or no base value, return dash
-    if (!paramValue || baseValue === 0) {
-      return '-';
-    }
-
-    try {
-      // NEW: Evaluate formula using previous year's REAL value as base
-      let evaluatedFormula = formula
-        .replace(/base/g, baseValue.toString()) // Use previous year's REAL value
-        .replace(/param/g, paramValue.toString()); // Use current year's parameter
-
-      console.log(`Projection for ${currentYear}: base=${baseValue} (from ${previousYear}), param=${paramValue}, formula="${formula}" -> "${evaluatedFormula}"`);
-
-      // Use eval for simple mathematical expressions
-      const result = eval(evaluatedFormula);
-      return Math.round(result);
-    } catch (error) {
-      console.error('Main page formula evaluation error:', error);
-      return baseValue; // Fallback to base value if formula fails
-    }
-  }, [globalParameters.utilidad.values, globalParameters.utilidad.proyecciones, projectionFormulas]);
-
-  // Función para aplicar parámetros a los datos - UPDATED projection logic
-  const applyParametersToData = useCallback((originalData: any) => {
-    const multiplier = 1 + (financialParameters.utilidad.crecimiento / 100);
-    const growthFactor = financialParameters.crecimientosVenta.porcentaje / 100;
-
-    // Para datos de utilidad (mockData2), proveer valores BASE y PROYECTADOS
-    if (originalData === mockData2 && globalParameters.utilidad.values && Object.keys(globalParameters.utilidad.values).length > 0) {
-
-      // UPDATED: Use new projection logic for each year
-      const projectedValues = originalData.realValues.map((value: any, index: number) => {
-        const currentYear = originalData.dates[index];
-        if (typeof value === 'string' && value === 'cargando') {
-          return 'cargando';
-        }
-
-        // Use the new projection evaluation logic
-        const projectionResult = evaluateProjection(currentYear);
-        return projectionResult;
-      });
-
-      return {
-        ...originalData,
-        presupuestadoValues: Array(originalData.dates.length).fill(0), // Fila 1 - siempre ceros
-        realValues: originalData.realValues, // Fila 2 - valores base (from API)
-        proyectadoValues: projectedValues // Fila 3 - valores proyectados using new logic
-      };
-    }
-
-    // Aplicar parámetros a otros datos financieros (existing logic for non-utilidad cards)
-    const processedRow2Values = originalData.realValues.map((value: number, index: number) => {
-      if (typeof value === 'string') return value;
-      const year = parseInt(originalData.dates[index]);
-      const yearGrowth = year > 2025 ? growthFactor : 0;
-      return Math.round(value * multiplier * (1 + yearGrowth));
-    });
-
-    // For non-utilidad cards: Generate third row but show '-' for years before 2025
-    const generatedRow3Values = processedRow2Values.map((value: any, index: number) => {
-      if (typeof value === 'string') return value;
-      const year = parseInt(originalData.dates[index]);
-
-      // NEW RULE: No projection for years before 2025
-      if (year < 2025) {
-        return '-';
-      }
-
-      return Math.round(value * 1.1); // Apply 10% additional as example for future years
-    });
-
-    return {
-      ...originalData,
-      presupuestadoValues: Array(originalData.dates.length).fill(0), // Fila 1 - siempre ceros
-      realValues: processedRow2Values, // Fila 2 - valores procesados
-      proyectadoValues: generatedRow3Values, // Fila 3 - updated projection logic
-      result: typeof originalData.result === 'number' ? Math.round(originalData.result * multiplier) : originalData.result
-    };
-  }, [financialParameters, globalParameters.utilidad.values, evaluateProjection, mockData2]);
-
-  // Function to get titles for cards
-  const getTitleForCard = useCallback((keyPrefix: string, index: number): string => {
-    const titles = {
-      crecimiento: [
-        "VALOR PATRIMONIO", "UTILIDAD", "EBITDA", "INTERESES A OPERACIONAL",
-        "VALOR DEUDA", "CRECIMIENTO PATRIMONIO", "CREACIÓN DE VALOR",
-        "RENTABILIDAD PATRIMONIO", "RENTABILIDAD CAPITAL"
-      ],
-      riesgo: [
-        "LIQUIDEZ CORRIENTE", "PRUEBA ÁCIDA", "ROTACIÓN INVENTARIOS",
-        "DÍAS COBRANZA", "ENDEUDAMIENTO TOTAL", "COBERTURA INTERESES",
-        "APALANCAMIENTO", "MARGEN BRUTO", "MARGEN OPERACIONAL"
-      ],
-      flujo: ["FLUJO OPERACIONAL", "FLUJO INVERSIÓN", "FLUJO FINANCIAMIENTO"],
-      rentabilidad: ["ROE PROMEDIO", "ROE OPERACIONAL", "ROE AJUSTADO"]
-    };
-    return titles[keyPrefix as keyof typeof titles]?.[index] || `${keyPrefix.toUpperCase()} ${index + 1}`;
-  }, []);
-
-  const getAvailableCategories = useCallback((section: SectionKey): string[] => {
-    const titles = {
-      crecimiento: [
-        "VALOR PATRIMONIO", "UTILIDAD", "EBITDA", "INTERESES A OPERACIONAL",
-        "VALOR DEUDA", "CRECIMIENTO PATRIMONIO", "CREACIÓN DE VALOR",
-        "RENTABILIDAD PATRIMONIO", "RENTABILIDAD CAPITAL"
-      ],
-      riesgo: [
-        "LIQUIDEZ CORRIENTE", "PRUEBA ÁCIDA", "ROTACIÓN INVENTARIOS",
-        "DÍAS COBRANZA", "ENDEUDAMIENTO TOTAL", "COBERTURA INTERESES",
-        "APALANCAMIENTO", "MARGEN BRUTO", "MARGEN OPERACIONAL"
-      ],
-      flujo: ["FLUJO OPERACIONAL", "FLUJO INVERSIÓN", "FLUJO FINANCIAMIENTO"],
-      rentabilidad: ["ROE PROMEDIO", "ROE OPERACIONAL", "ROE AJUSTADO"]
-    };
-    return titles[section] || [];
-  }, []);
-
-  // Function to compare arrays
-  const arraysEqual = useCallback((a: string[], b: string[]) => {
-    return a.length === b.length && a.every((val, i) => val === b[i]);
-  }, []);
-
-  // Function to get the analysis type title based on selected years - UPDATED for simple year count
-  const getAnalysisTypeTitle = useCallback((selectedYears: string[]): string => {
-    const matchingRange = YEAR_RANGES.find(range =>
-      arraysEqual(range.years, selectedYears)
-    );
-
-    if (matchingRange) {
-      return matchingRange.label;
-    } else {
-      // For custom selections, use simple year count format
-      return `${selectedYears.length} año${selectedYears.length !== 1 ? 's' : ''} (personalizado)`;
-    }
-  }, [arraysEqual]);
-
-  // Definición de las secciones y sus datos
-  const sections = useMemo(() => ({
-    crecimiento: {
-      title: "CRECIMIENTO SOSTENIBLE",
-      data: [
-        mockFinancialData, mockData2, mockData3, mockFinancialData, mockData2,
-        mockData3, mockFinancialData, mockData4, mockData5
-      ],
-      icon: <svg className="block size-full" fill="none" viewBox="0 0 32 32"><path d={svgPathsDark.p20c62f00} fill={isDarkMode ? "white" : "#404040"} /></svg>
-    },
-    riesgo: {
-      title: "RIESGO FINANCIERO",
-      data: [
-        mockFinancialData, mockData2, mockData3, mockData4, mockData5,
-        mockData6, mockData7, mockData8, mockData9
-      ],
-      icon: <svg className="block size-full" fill="none" viewBox="0 0 32 32"><path d={svgPathsDark.p5d83c80} fill={isDarkMode ? "white" : "#404040"} /></svg>
-    },
-    flujo: {
-      title: "FLUJO DE EFECTIVO",
-      data: [mockFinancialData, mockData2, mockData3],
-      icon: <svg className="block size-full" fill="none" viewBox="0 0 32 32"><path d={svgPathsDark.p266f0a80} fill={isDarkMode ? "white" : "#404040"} /></svg>
-    },
-    rentabilidad: {
-      title: "RENTABILIDAD DEL PATRIMONIO",
-      data: [mockData3, mockData4, mockData5],
-      icon: <svg className="block size-full" fill="none" viewBox="0 0 32 32"><path d={svgPathsDark.p9a70c80} fill={isDarkMode ? "white" : "#404040"} /></svg>
-    }
-  }), [mockData2, isDarkMode]);
-
-  // Generación de datos de tarjetas de forma centralizada
-  const allCardData = useMemo(() => {
-    const newAllCardData: { [key in SectionKey]: FinancialCardData[] } = {
-      crecimiento: [],
-      riesgo: [],
-      flujo: [],
-      rentabilidad: []
-    };
-
-    (Object.keys(sections) as SectionKey[]).forEach(sectionKey => {
-      const sectionInfo = sections[sectionKey];
-      const filters = sectionFilters[sectionKey];
-      const availableCategories = getAvailableCategories(sectionKey);
-
-      const categoriesToShow = filters.selectedCategories.length === 0
-        ? availableCategories
-        : filters.selectedCategories;
-
-      newAllCardData[sectionKey] = sectionInfo.data
-        .map((data, index) => ({
-          id: `${sectionKey}-${index}`,
-          title: getTitleForCard(sectionKey, index),
-          data: applyParametersToData(data),
-        }))
-        .filter(card => categoriesToShow.includes(card.title));
-    });
-
-    return newAllCardData;
-  }, [sections, sectionFilters, getAvailableCategories, getTitleForCard, applyParametersToData]);
-
-
-  // Función para crear elementos React a partir de los datos de las tarjetas
-  const createCardElements = useCallback((cardData: FinancialCardData[], sectionKey: SectionKey) => {
-    const currentOrder = cardOrders[sectionKey] || [];
-    const orderedData = currentOrder.length > 0
-      ? currentOrder.map(id => cardData.find(item => item.id === id)).filter(Boolean) as FinancialCardData[]
-      : cardData;
-
-    return orderedData.map(({ id, data, title }) => {
-      const yearsToUse = sectionFilters[sectionKey]?.selectedYears.length > 0
-        ? sectionFilters[sectionKey].selectedYears
-        : globalSelectedYears;
-
-      return (
-        <FinancialCard
-          key={id}
-          title={title}
-          data={data}
-          globalSelectedYears={yearsToUse}
-        />
-      );
-    });
-  }, [sectionFilters, globalSelectedYears, cardOrders]);
-
-  // Creación de elementos de tarjeta para cada sección
-  const sectionCards = useMemo(() => {
-    const newSectionCards: { [key in SectionKey]: React.ReactNode[] } = {
-      crecimiento: [],
-      riesgo: [],
-      flujo: [],
-      rentabilidad: []
-    };
-
-    (Object.keys(allCardData) as SectionKey[]).forEach(sectionKey => {
-      newSectionCards[sectionKey] = createCardElements(allCardData[sectionKey], sectionKey);
-    });
-
-    return newSectionCards;
-  }, [allCardData, createCardElements]);
-
-
-  // Initialize card orders when card data changes (only once)
-  useEffect(() => {
-    const newOrders: Record<SectionKey, string[]> = {
-      crecimiento: allCardData.crecimiento.map(item => item.id),
-      riesgo: allCardData.riesgo.map(item => item.id),
-      flujo: allCardData.flujo.map(item => item.id),
-      rentabilidad: allCardData.rentabilidad.map(item => item.id)
-    };
-
-    // Solo actualizar si las órdenes están vacías (carga inicial)
-    setCardOrders(prev => ({
-      crecimiento: prev.crecimiento.length === 0 ? newOrders.crecimiento : prev.crecimiento,
-      riesgo: prev.riesgo.length === 0 ? newOrders.riesgo : prev.riesgo,
-      flujo: prev.flujo.length === 0 ? newOrders.flujo : prev.flujo,
-      rentabilidad: prev.rentabilidad.length === 0 ? newOrders.rentabilidad : prev.rentabilidad,
-    }));
-  }, [allCardData]);
-
-  // Event handlers
-  const toggleSection = useCallback((section: keyof typeof sectionStates) => {
-    setSectionStates(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  }, []);
-
-  const toggleSidebar = useCallback(() => {
-    setIsSidebarOpen(prev => !prev);
-  }, []);
-
-  const handleParameterChange = useCallback((section: string, parameter: string, value: string | number) => {
-    console.log(`Global parameter changed: ${section}.${parameter} = ${value}`);
-
-    // Handle utilidad projection parameters
-    if (section === 'utilidad' && parameter.includes('proy')) {
-      // Extract year from parameter like 'proy2025'
-      const year = parameter.replace('proy', '');
-      const newProjections = {
-        ...globalParameters.utilidad.proyecciones,
-        [year]: typeof value === 'string' ? parseFloat(value) || 10 : value
-      };
-
-      console.log('Updated global proyecciones:', newProjections);
-
-      setGlobalParameters(prev => ({
-        ...prev,
+    // Estado para datos de todas las tarjetas
+    const [cardsData, setCardsData] = useState<{ [cardId: string]: CardDataInterface }>({});
+    const [loadingCards, setLoadingCards] = useState<{ [cardId: string]: boolean }>({});
+
+    // Global parameter states (shared between Sidebar and main page)
+    const [globalParameters, setGlobalParameters] = useState({
         utilidad: {
-          ...prev.utilidad,
-          proyecciones: newProjections
-        }
-      }));
-    }
-    // Handle other financial parameters (keep existing functionality)
-    else if (section === 'crecimientosVenta') {
-      setFinancialParameters(prev => ({
-        ...prev,
+            values: {} as { [year: string]: number },
+            result: 0,
+            proyecciones: {} as { [year: string]: number }
+        },
         crecimientosVenta: {
-          porcentaje: Number(value)
-        }
-      }));
-    } else if (section === 'inversiones') {
-      setFinancialParameters(prev => ({
-        ...prev,
+            values: {} as { [year: string]: number },
+            proyeccion: 10
+        },
         inversiones: {
-          porcentaje: Number(value)
+            values: {} as { [year: string]: number },
+            proyeccion: 10
+        },
+        vidaUtilActivos: {
+            valor: "10 años"
         }
-      }));
-    }
-  }, [globalParameters.utilidad.proyecciones]);
-
-  // HANDLER ACTUALIZADO para manejar el cambio de años globales
-  const handleGlobalYearsChange = useCallback((years: string[]) => {
-    setGlobalSelectedYears(years);
-
-    // Actualizar también los filtros de todas las secciones para sincronizar
-    setSectionFilters(prev => ({
-      crecimiento: { ...prev.crecimiento, selectedYears: years },
-      riesgo: { ...prev.riesgo, selectedYears: years },
-      flujo: { ...prev.flujo, selectedYears: years },
-      rentabilidad: { ...prev.rentabilidad, selectedYears: years }
-    }));
-
-    console.log('Global years changed to:', years);
-  }, []);
-
-  const handleModeChange = useCallback((isDark: boolean) => {
-    setIsDarkMode(isDark);
-    console.log('Mode changed to:', isDark ? 'dark' : 'light');
-
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
-
-  const handleNotificationClick = useCallback(() => {
-    console.log('Notifications clicked!');
-    setHasNotifications(false);
-    setNotificationCount(0);
-
-    setTimeout(() => {
-      setHasNotifications(true);
-      setNotificationCount(Math.floor(Math.random() * 5) + 1);
-    }, 10000);
-  }, []);
-
-  const handleProfileClick = useCallback(() => {
-    setIsUserDropdownOpen(prev => !prev);
-  }, []);
-
-  const handleUserDropdownClose = useCallback(() => {
-    setIsUserDropdownOpen(false);
-  }, []);
-
-  const handleFilterClick = useCallback((section: SectionKey) => {
-    setFilterModal({
-      isOpen: true,
-      section: section
     });
-  }, []);
 
-  const handleFilterClose = useCallback(() => {
-    setFilterModal({
-      isOpen: false,
-      section: null
-    });
-  }, []);
+    // Loading states for global parameters
+    const [isLoadingGlobalParametros, setIsLoadingGlobalParametros] = useState(true);
+    const [isLoadingFormulas, setIsLoadingFormulas] = useState(true);
 
-  const handleApplyFilters = useCallback((years: string[], categories: string[]) => {
-    if (filterModal.section) {
-      setSectionFilters(prev => ({
-        ...prev,
-        [filterModal.section!]: {
-          selectedYears: years,
-          selectedCategories: categories
+    // Projection formulas state
+    const [projectionFormulas, setProjectionFormulas] = useState<{ [formulaType: string]: string }>({});
+
+    // Function to load data for a specific card
+    const loadCardData = useCallback(async (cardId: string, title: string) => {
+        setLoadingCards(prev => ({ ...prev, [cardId]: true }));
+
+        try {
+            const data = await fetchCardData(title, 2022, 2029);
+            setCardsData(prev => ({ ...prev, [cardId]: data }));
+        } catch (error) {
+            console.error(`Failed to fetch data for card ${cardId}:`, error);
+            setCardsData(prev => ({
+                ...prev,
+                [cardId]: {
+                    dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
+                    values: Array(8).fill(-1),
+                    result: -1,
+                    warning: 'Failed to load'
+                }
+            }));
+        } finally {
+            setLoadingCards(prev => ({ ...prev, [cardId]: false }));
         }
-      }));
-      console.log(`Applied filters for ${filterModal.section}:`, { years, categories });
-    }
-  }, [filterModal.section]);
+    }, []);
 
-  const getSectionTitle = useCallback((section: SectionKey | null): string => {
-    const titles = {
-      crecimiento: "CRECIMIENTO SOSTENIBLE",
-      riesgo: "RIESGO FINANCIERO",
-      flujo: "FLUJO DE EFECTIVO",
-      rentabilidad: "RENTABILIDAD DEL PATRIMONIO"
+    // Fetch projection parameters from API
+    const fetchGlobalParametros = useCallback(async () => {
+        try {
+            setIsLoadingGlobalParametros(true);
+            const response = await fetch('/api/parametros?prmt_codigo=PROY_UTIL');
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.data && result.data.parametros) {
+                    const proyecciones: { [year: string]: number } = {};
+
+                    result.data.parametros.forEach((param: any) => {
+                        if (param.prmt_ano) {
+                            proyecciones[param.prmt_ano.toString()] = param.prmt_valor;
+                        }
+                    });
+
+                    setGlobalParameters(prev => ({
+                        ...prev,
+                        utilidad: {
+                            ...prev.utilidad,
+                            proyecciones: proyecciones
+                        }
+                    }));
+                } else {
+                    console.warn('Parametros API returned unsuccessful response:', result);
+                }
+            } else {
+                console.warn(`Parametros API request failed with status ${response.status}: ${response.statusText}`);
+            }
+        } catch (error) {
+            console.warn('Failed to fetch global parametros data (DB may be offline):', error);
+        } finally {
+            setIsLoadingGlobalParametros(false);
+        }
+    }, []);
+
+    // Fetch projection formulas from API
+    const fetchProjectionFormulas = useCallback(async () => {
+        try {
+            setIsLoadingFormulas(true);
+            const response = await fetch('/api/formulas?fmls_desc=utilidad_basica_proyeccion');
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.data && result.data.formulas) {
+                    const formulas: { [formulaType: string]: string } = {};
+
+                    result.data.formulas.forEach((formula: any) => {
+                        if (formula.fmls_desc) {
+                            formulas[formula.fmls_desc] = formula.fmls_body;
+                        }
+                    });
+
+                    setProjectionFormulas(formulas);
+                    console.log('Loaded generic projection formulas:', formulas);
+                } else {
+                    console.warn('Formulas API returned unsuccessful response:', result);
+                }
+            } else {
+                console.warn(`Formulas API request failed with status ${response.status}: ${response.statusText}`);
+            }
+        } catch (error) {
+            console.warn('Failed to fetch projection formulas (DB may be offline):', error);
+        } finally {
+            setIsLoadingFormulas(false);
+        }
+    }, []);
+
+    // Initialize card data on mount
+    useEffect(() => {
+        fetchGlobalParametros();
+        fetchProjectionFormulas();
+
+        // Load all cards data
+        Object.entries(SECTION_CARD_TITLES).forEach(([sectionKey, titles]) => {
+            titles.forEach((title, index) => {
+                const cardId = `${sectionKey}-${index}`;
+                loadCardData(cardId, title);
+            });
+        });
+    }, [fetchGlobalParametros, fetchProjectionFormulas, loadCardData]);
+
+    // Estados principales
+    const [sectionStates, setSectionStates] = useState({
+        crecimiento: false,
+        riesgo: false,
+        flujo: false,
+        rentabilidad: false
+    });
+
+    // Updated default to 4 years (2024-2027) - keeping the standard recommendation
+    const [globalSelectedYears, setGlobalSelectedYears] = useState<string[]>(['2024', '2025', '2026', '2027']);
+    const [isDarkMode, setIsDarkMode] = useState(false);
+    const [hasNotifications, setHasNotifications] = useState(true);
+    const [notificationCount, setNotificationCount] = useState(3);
+    const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+
+    // Estado del sidebar
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    // Updated section filters to match new year range
+    const [sectionFilters, setSectionFilters] = useState<Record<SectionKey, SectionFilters>>({
+        crecimiento: {
+            selectedYears: ['2024', '2025', '2026', '2027'],
+            selectedCategories: []
+        },
+        riesgo: {
+            selectedYears: ['2024', '2025', '2026', '2027'],
+            selectedCategories: []
+        },
+        flujo: {
+            selectedYears: ['2024', '2025', '2026', '2027'],
+            selectedCategories: []
+        },
+        rentabilidad: {
+            selectedYears: ['2024', '2025', '2026', '2027'],
+            selectedCategories: []
+        }
+    });
+
+    const [filterModal, setFilterModal] = useState<{
+        isOpen: boolean;
+        section: SectionKey | null;
+    }>({
+        isOpen: false,
+        section: null
+    });
+
+    // Estados para el orden de las cards en cada sección - usando IDs en lugar de React elements
+    const [cardOrders, setCardOrders] = useState<Record<SectionKey, string[]>>({
+        crecimiento: [],
+        riesgo: [],
+        flujo: [],
+        rentabilidad: []
+    });
+
+    // Función para calcular el valor de la empresa basado en los años seleccionados
+    const calculateCompanyValue = useCallback((selectedYears: string[]): number => {
+        const baseValue = 7506;
+        const yearMultiplier = selectedYears.length * 0.15; // 15% adicional por cada año
+        const futureYearsBonus = selectedYears.filter(year => parseInt(year) > 2025).length * 0.25; // 25% adicional por años futuros
+
+        return Math.round(baseValue * (1 + yearMultiplier + futureYearsBonus));
+    }, []);
+
+    // Function to compare arrays
+    const arraysEqual = useCallback((a: string[], b: string[]) => {
+        return a.length === b.length && a.every((val, i) => val === b[i]);
+    }, []);
+
+    // Function to get the analysis type title based on selected years - UPDATED for simple year count
+    const getAnalysisTypeTitle = useCallback((selectedYears: string[]): string => {
+        const matchingRange = YEAR_RANGES.find(range =>
+            arraysEqual(range.years, selectedYears)
+        );
+
+        if (matchingRange) {
+            return matchingRange.label;
+        } else {
+            // For custom selections, use simple year count format
+            return `${selectedYears.length} año${selectedYears.length !== 1 ? 's' : ''} (personalizado)`;
+        }
+    }, [arraysEqual]);
+
+    // Generate card data for each section
+    const generateSectionCards = useCallback((sectionKey: SectionKey) => {
+        const titles = SECTION_CARD_TITLES[sectionKey];
+        const filters = sectionFilters[sectionKey];
+
+        const categoriesToShow = filters.selectedCategories.length === 0
+            ? titles
+            : filters.selectedCategories;
+
+        return titles
+            .map((title, index) => {
+                const cardId = `${sectionKey}-${index}`;
+                const rawData = cardsData[cardId];
+                const isLoading = loadingCards[cardId];
+
+                if (!categoriesToShow.includes(title)) {
+                    return null; // Filter out cards not in selected categories
+                }
+
+                // Process the data into FinancialCard format
+                const processedData = processCardData(
+                    rawData || { dates: [], values: [], result: -1 },
+                    cardId,
+                    title
+                );
+
+                const yearsToUse = filters.selectedYears.length > 0
+                    ? filters.selectedYears
+                    : globalSelectedYears;
+
+                return (
+                    <FinancialCard
+                        key={cardId}
+                        title={title}
+                        data={processedData.data}
+                        globalSelectedYears={yearsToUse}
+                    />
+                );
+            })
+            .filter(Boolean); // Remove null items
+    }, [cardsData, loadingCards, sectionFilters, globalSelectedYears]);
+
+    // Create sections with dynamic data
+    const sections = useMemo(() => ({
+        crecimiento: {
+            title: "CRECIMIENTO SOSTENIBLE",
+            cards: generateSectionCards('crecimiento'),
+            icon: <svg className="block size-full" fill="none" viewBox="0 0 32 32"><path d={svgPathsDark.p20c62f00} fill={isDarkMode ? "white" : "#404040"} /></svg>
+        },
+        riesgo: {
+            title: "RIESGO FINANCIERO",
+            cards: generateSectionCards('riesgo'),
+            icon: <svg className="block size-full" fill="none" viewBox="0 0 32 32"><path d={svgPathsDark.p5d83c80} fill={isDarkMode ? "white" : "#404040"} /></svg>
+        },
+        flujo: {
+            title: "FLUJO DE EFECTIVO",
+            cards: generateSectionCards('flujo'),
+            icon: <svg className="block size-full" fill="none" viewBox="0 0 32 32"><path d={svgPathsDark.p266f0a80} fill={isDarkMode ? "white" : "#404040"} /></svg>
+        },
+        rentabilidad: {
+            title: "RENTABILIDAD DEL PATRIMONIO",
+            cards: generateSectionCards('rentabilidad'),
+            icon: <svg className="block size-full" fill="none" viewBox="0 0 32 32"><path d={svgPathsDark.p9a70c80} fill={isDarkMode ? "white" : "#404040"} /></svg>
+        }
+    }), [generateSectionCards, isDarkMode]);
+
+    // Event handlers
+    const toggleSection = useCallback((section: keyof typeof sectionStates) => {
+        setSectionStates(prev => ({
+            ...prev,
+            [section]: !prev[section]
+        }));
+    }, []);
+
+    const toggleSidebar = useCallback(() => {
+        setIsSidebarOpen(prev => !prev);
+    }, []);
+
+    const handleParameterChange = useCallback((section: string, parameter: string, value: string | number) => {
+        console.log(`Global parameter changed: ${section}.${parameter} = ${value}`);
+        // Handle parameter changes here if needed
+    }, []);
+
+    // HANDLER ACTUALIZADO para manejar el cambio de años globales
+    const handleGlobalYearsChange = useCallback((years: string[]) => {
+        setGlobalSelectedYears(years);
+
+        // Actualizar también los filtros de todas las secciones para sincronizar
+        setSectionFilters(prev => ({
+            crecimiento: { ...prev.crecimiento, selectedYears: years },
+            riesgo: { ...prev.riesgo, selectedYears: years },
+            flujo: { ...prev.flujo, selectedYears: years },
+            rentabilidad: { ...prev.rentabilidad, selectedYears: years }
+        }));
+
+        console.log('Global years changed to:', years);
+    }, []);
+
+    const handleModeChange = useCallback((isDark: boolean) => {
+        setIsDarkMode(isDark);
+        console.log('Mode changed to:', isDark ? 'dark' : 'light');
+
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    }, []);
+
+    const handleNotificationClick = useCallback(() => {
+        console.log('Notifications clicked!');
+        setHasNotifications(false);
+        setNotificationCount(0);
+
+        setTimeout(() => {
+            setHasNotifications(true);
+            setNotificationCount(Math.floor(Math.random() * 5) + 1);
+        }, 10000);
+    }, []);
+
+    const handleProfileClick = useCallback(() => {
+        setIsUserDropdownOpen(prev => !prev);
+    }, []);
+
+    const handleUserDropdownClose = useCallback(() => {
+        setIsUserDropdownOpen(false);
+    }, []);
+
+    const handleFilterClick = useCallback((section: SectionKey) => {
+        setFilterModal({
+            isOpen: true,
+            section: section
+        });
+    }, []);
+
+    const handleFilterClose = useCallback(() => {
+        setFilterModal({
+            isOpen: false,
+            section: null
+        });
+    }, []);
+
+    const handleApplyFilters = useCallback((years: string[], categories: string[]) => {
+        if (filterModal.section) {
+            setSectionFilters(prev => ({
+                ...prev,
+                [filterModal.section!]: {
+                    selectedYears: years,
+                    selectedCategories: categories
+                }
+            }));
+            console.log(`Applied filters for ${filterModal.section}:`, { years, categories });
+        }
+    }, [filterModal.section]);
+
+    const getSectionTitle = useCallback((section: SectionKey | null): string => {
+        const titles = {
+            crecimiento: "CRECIMIENTO SOSTENIBLE",
+            riesgo: "RIESGO FINANCIERO",
+            flujo: "FLUJO DE EFECTIVO",
+            rentabilidad: "RENTABILIDAD DEL PATRIMONIO"
+        };
+        return section ? titles[section] : "";
+    }, []);
+
+    // Updated reorder handlers to work with IDs
+    const handleReorder = useCallback((section: SectionKey, newOrder: React.ReactNode[]) => {
+        const newOrderIds = newOrder.map((element: any) => element.key);
+        setCardOrders(prev => ({
+            ...prev,
+            [section]: newOrderIds
+        }));
+        console.log(`Cards reordered in ${section} section`);
+    }, []);
+
+    const onReorderHandlers: Record<SectionKey, (newOrder: React.ReactNode[]) => void> = {
+        crecimiento: (newOrder) => handleReorder('crecimiento', newOrder),
+        riesgo: (newOrder) => handleReorder('riesgo', newOrder),
+        flujo: (newOrder) => handleReorder('flujo', newOrder),
+        rentabilidad: (newOrder) => handleReorder('rentabilidad', newOrder)
     };
-    return section ? titles[section] : "";
-  }, []);
 
-  // Updated reorder handlers to work with IDs
-  const handleReorder = useCallback((section: SectionKey, newOrder: React.ReactNode[]) => {
-    const newOrderIds = newOrder.map((element: any) => element.key);
-    setCardOrders(prev => ({
-      ...prev,
-      [section]: newOrderIds
-    }));
-    console.log(`Cards reordered in ${section} section`);
-  }, []);
+    // Calcular valor de empresa dinámicamente
+    const companyValue = useMemo(() => calculateCompanyValue(globalSelectedYears), [calculateCompanyValue, globalSelectedYears]);
 
-  const onReorderHandlers: Record<SectionKey, (newOrder: React.ReactNode[]) => void> = {
-    crecimiento: (newOrder) => handleReorder('crecimiento', newOrder),
-    riesgo: (newOrder) => handleReorder('riesgo', newOrder),
-    flujo: (newOrder) => handleReorder('flujo', newOrder),
-    rentabilidad: (newOrder) => handleReorder('rentabilidad', newOrder)
-  };
+    // Get the analysis type title for the current selection
+    const analysisTypeTitle = useMemo(() => getAnalysisTypeTitle(globalSelectedYears), [getAnalysisTypeTitle, globalSelectedYears]);
 
-
-  // Calcular valor de empresa dinámicamente
-  const companyValue = useMemo(() => calculateCompanyValue(globalSelectedYears), [calculateCompanyValue, globalSelectedYears]);
-
-  // Get the analysis type title for the current selection
-  const analysisTypeTitle = useMemo(() => getAnalysisTypeTitle(globalSelectedYears), [getAnalysisTypeTitle, globalSelectedYears]);
-
-  // Componente mejorado para el icono hamburguesa
-  const HamburgerIcon = useCallback(() => (
-    <div className="h-6 w-6 flex items-center justify-center">
-      <svg className="block w-5 h-4" fill="none" viewBox="0 0 20 16">
-        <g>
-          <line
-            stroke={isDarkMode ? "#3ABE76" : "#1A6E31"}
-            strokeLinecap="round"
-            strokeWidth="2"
-            x1="1"
-            x2="19"
-            y1="2"
-            y2="2"
-          />
-          <line
-            stroke={isDarkMode ? "#3ABE76" : "#1A6E31"}
-            strokeLinecap="round"
-            strokeWidth="2"
-            x1="1"
-            x2="19"
-            y1="8"
-            y2="8"
-          />
-          <line
-            stroke={isDarkMode ? "#3ABE76" : "#1A6E31"}
-            strokeLinecap="round"
-            strokeWidth="2"
-            x1="1"
-            x2="19"
-            y1="14"
-            y2="14"
-          />
-        </g>
-      </svg>
-    </div>
-  ), [isDarkMode]);
-
-  return (
-    <DnDProviderWrapper>
-      <div className={`min-h-screen ${isDarkMode ? 'dark' : ''}`}
-        style={{ backgroundColor: isDarkMode ? '#0d0f0f' : '#f5f5f5', overflow: 'visible' }}>
-
-        {/* Layout principal con flex */}
-        <div className="flex min-h-screen relative" style={{ overflow: 'visible' }}>
-
-          {/* Sidebar mejorado - COMPLETAMENTE sin cortes */}
-          <div className={`sidebar-container transition-all duration-300 ease-in-out ${isSidebarOpen ? 'w-[420px]' : 'w-0'
-            } flex-shrink-0 relative z-40`} style={{ overflow: 'visible' }}>
-            <div className={`absolute inset-0 ${isSidebarOpen ? 'visible' : 'invisible'}`} style={{ overflow: 'visible' }}>
-              <div className="h-full w-full p-4" style={{ overflow: 'visible', position: 'relative' }}>
-                <Sidebar
-                  isOpen={isSidebarOpen}
-                  onToggle={toggleSidebar}
-                  onParameterChange={handleParameterChange}
-                  selectedYears={globalSelectedYears}
-                  isDarkMode={isDarkMode}
-                  globalParameters={globalParameters}
-                  projectionFormulas={projectionFormulas}
-                  isLoadingGlobalParametros={isLoadingGlobalParametros}
-                  isLoadingFormulas={isLoadingFormulas}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Contenido principal */}
-          <div className="flex-1 min-h-screen relative">
-            {/* Background decoration elements */}
-            <div
-              className="absolute flex h-[1307.894px] items-center justify-center top-[-484px] w-[1411.386px] z-0"
-              style={{ left: "calc(50% - 705px)" }}
-            >
-              <div className="flex-none rotate-[27.694deg]">
-                <div className="h-[884px] relative w-[1130px]">
-                  <div className="absolute bottom-[-21.619%] left-[-16.913%] right-[-16.913%] top-[-21.619%]">
-                    <svg className="block size-full" fill="none" viewBox="0 0 1514 1268">
-                      <g filter="url(#filter0_f_1_79956)">
-                        <ellipse
-                          cx="757"
-                          cy="634"
-                          fill="#15803D"
-                          fillOpacity="0.14"
-                          rx="565"
-                          ry="442"
-                        />
-                      </g>
-                      <defs>
-                        <filter
-                          colorInterpolationFilters="sRGB"
-                          filterUnits="userSpaceOnUse"
-                          height="1266.23"
-                          id="filter0_f_1_79956"
-                          width="1512.23"
-                          x="0.884888"
-                          y="0.884888"
-                        >
-                          <feFlood floodOpacity="0" result="BackgroundImageFix" />
-                          <feBlend
-                            in="SourceGraphic"
-                            in2="BackgroundImageFix"
-                            mode="normal"
-                            result="shape"
-                          />
-                          <feGaussianBlur
-                            result="effect1_foregroundBlur_1_79956"
-                            stdDeviation="95.5576"
-                          />
-                        </filter>
-                      </defs>
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Contenedor principal con padding mejorado */}
-            <div className="w-full h-full flex justify-center">
-              <div className="w-full max-w-[1400px] min-h-screen relative px-4 sm:px-6 lg:px-8">
-
-                {/* Layout interno mejorado */}
-                <div className="flex gap-3 sm:gap-4 lg:gap-6 h-full relative z-10 py-4 sm:py-6 lg:py-8">
-
-                  {/* BOTÓN TOGGLE - SOLO VISIBLE CUANDO SIDEBAR ESTÁ CERRADO */}
-                  {!isSidebarOpen && (
-                    <div className="flex-shrink-0 flex items-start pt-2">
-                      <button
-                        onClick={toggleSidebar}
-                        className="sidebar-toggle-clean relative h-12 w-12 sm:h-14 sm:w-14 rounded-2xl shadow-lg transition-all duration-300 flex items-center justify-center z-50 group"
-                        style={{
-                          backgroundColor: isDarkMode ? 'rgba(115,115,115,0.9)' : 'rgba(247,249,250,0.95)',
-                          border: `2px solid ${isDarkMode ? '#3ABE76' : '#1A6E31'}20`
-                        }}
-                        aria-label="Abrir panel de parámetros"
-                      >
-
-                        {/* Contenedor del icono hamburguesa */}
-                        <div className="sidebar-toggle-icon-enhanced relative">
-                          <div className="transform transition-all duration-300 hover:scale-110">
-                            <HamburgerIcon />
-                          </div>
-                        </div>
-
-                        {/* Tooltip para abrir */}
-                        <div className="absolute left-full ml-3 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-300 pointer-events-none opacity-0 group-hover:opacity-100"
-                          style={{
-                            backgroundColor: isDarkMode ? 'rgba(34,33,38,0.95)' : 'rgba(255,255,255,0.95)',
-                            color: isDarkMode ? '#ffffff' : '#404040',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                          }}>
-                          Abrir parámetros
-                          {/* Flecha del tooltip */}
-                          <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent"
-                            style={{
-                              borderRightColor: isDarkMode ? 'rgba(34,33,38,0.95)' : 'rgba(255,255,255,0.95)'
-                            }} />
-                        </div>
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Contenido principal - ajustar padding cuando sidebar está abierto */}
-                  <div className={`flex-1 flex flex-col gap-6 sm:gap-8 lg:gap-10 min-w-0 transition-all duration-300 ${isSidebarOpen ? 'pl-0' : 'pl-0'
-                    }`}>
-
-                    {/* Header con título y controles */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-
-                      {/* Título */}
-                      <div className="min-w-0">
-                        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium truncate"
-                          style={{ color: isDarkMode ? '#ffffff' : '#404040' }}>
-                          Dashboard FI
-                        </h1>
-                        <p className="text-lg sm:text-xl text-[#adadad] mt-1">Cliente</p>
-                      </div>
-
-                      {/* CONTROLES DEL HEADER - TODOS VISIBLES */}
-                      <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
-
-                        {/* MODE CHANGER - VISIBLE Y FUNCIONAL */}
-                        <ModeChanger onModeChange={handleModeChange} />
-
-                        {/* NOTIFICATION ICON - VISIBLE CON BADGE */}
-                        <NotificationIcon
-                          hasNotifications={hasNotifications}
-                          notificationCount={notificationCount}
-                          onClick={handleNotificationClick}
-                          isDarkMode={isDarkMode}
-                        />
-
-                        {/* PERFIL DE USUARIO - VISIBLE CON DROPDOWN */}
-                        <div className="relative">
-                          <div
-                            className="profile-button w-12 h-12 rounded-lg bg-center bg-cover bg-no-repeat cursor-pointer border-2 border-transparent hover:border-gray-300"
-                            style={{ backgroundImage: `url('/a1.png')` }}
-                            onClick={handleProfileClick}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                handleProfileClick();
-                              }
-                            }}
-                            aria-expanded={isUserDropdownOpen}
-                            aria-haspopup="menu"
-                            aria-label="Abrir menú de usuario"
-                          />
-
-                          <UserDropdown
-                            isOpen={isUserDropdownOpen}
-                            onClose={handleUserDropdownClose}
-                            userName="José Rodríguez"
-                            userRole="Administrador"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* SELECTOR DE AÑOS DINÁMICO Y VALOR EMPRESA - RESPONSIVE */}
-                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 lg:gap-6">
-
-                      {/* NUEVO SELECTOR DE AÑOS DINÁMICO */}
-                      <div className="flex-1 lg:min-w-[400px] lg:max-w-[600px]">
-                        <GlobalYearSelector
-                          selectedYears={globalSelectedYears}
-                          onYearsChange={handleGlobalYearsChange}
-                          isDarkMode={isDarkMode}
-                        />
-                      </div>
-
-                      {/* VALOR EMPRESA - MISMO PADDING QUE EL SELECTOR (p-4) */}
-                      <div className="rounded-2xl p-4 border-2 flex-shrink-0"
-                        style={{
-                          backgroundColor: isDarkMode ? 'rgba(115,115,115,0.4)' : '#f7f9fa',
-                          borderColor: isDarkMode ? '#f2f2f2' : '#d0d5dd'
-                        }}>
-                        <div className="flex items-center gap-2 sm:gap-3">
-                          <h3 className="text-lg sm:text-xl lg:text-2xl font-bold whitespace-nowrap"
-                            style={{ color: isDarkMode ? '#ffffff' : '#404040' }}>
-                            Valor empresa
-                          </h3>
-                          <span className="text-base sm:text-lg lg:text-xl font-semibold"
-                            style={{ color: isDarkMode ? '#3ABE76' : '#1A6E31' }}>
-                            {companyValue.toLocaleString('es-ES')}
-                          </span>
-                        </div>
-                        <div className="mt-1 space-y-1">
-                          <span className="text-xs sm:text-sm"
-                            style={{ color: isDarkMode ? '#adadad' : '#9d9292' }}>
-                            {analysisTypeTitle}
-                          </span>
-                          {/* Data source indicator */}
-                          <div className="text-xs" style={{ color: isDarkMode ? '#666' : '#999' }}>
-                            {isLoadingUtilidad ? (
-                              '⏳ Cargando datos...'
-                            ) : utilidadData ? (
-                              '✅ Datos API cargados - Todas las tarjetas actualizadas'
-                            ) : (
-                              '⚠️ Usando datos de prueba'
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Financial Sections */}
-                    <div className="space-y-6 sm:space-y-8 lg:space-y-10">
-
-                      <CarouselSection
-                        title="CRECIMIENTO SOSTENIBLE"
-                        icon={
-                          <div className="relative shrink-0 size-8">
-                            {sections.crecimiento.icon}
-                          </div>
-                        }
-                        isExpanded={sectionStates.crecimiento}
-                        onToggleExpansion={() => toggleSection('crecimiento')}
-                        onReorderCards={onReorderHandlers.crecimiento}
-                        onFilterClick={() => handleFilterClick('crecimiento')}
-                        isDarkMode={isDarkMode}
-                      >
-                        {sectionCards.crecimiento}
-                      </CarouselSection>
-
-                      <CarouselSection
-                        title="RIESGO FINANCIERO"
-                        icon={
-                          <div className="relative shrink-0 size-8">
-                            {sections.riesgo.icon}
-                          </div>
-                        }
-                        isExpanded={sectionStates.riesgo}
-                        onToggleExpansion={() => toggleSection('riesgo')}
-                        onReorderCards={onReorderHandlers.riesgo}
-                        onFilterClick={() => handleFilterClick('riesgo')}
-                        isDarkMode={isDarkMode}
-                      >
-                        {sectionCards.riesgo}
-                      </CarouselSection>
-
-                      <CarouselSection
-                        title="FLUJO DE EFECTIVO"
-                        icon={
-                          <div className="relative shrink-0 size-8">
-                            {sections.flujo.icon}
-                          </div>
-                        }
-                        isExpanded={sectionStates.flujo}
-                        onToggleExpansion={() => toggleSection('flujo')}
-                        onReorderCards={onReorderHandlers.flujo}
-                        onFilterClick={() => handleFilterClick('flujo')}
-                        isDarkMode={isDarkMode}
-                      >
-                        {sectionCards.flujo}
-                      </CarouselSection>
-
-                      <CarouselSection
-                        title="RENTABILIDAD DEL PATRIMONIO"
-                        icon={
-                          <div className="relative shrink-0 size-8">
-                            {sections.rentabilidad.icon}
-                          </div>
-                        }
-                        isExpanded={sectionStates.rentabilidad}
-                        onToggleExpansion={() => toggleSection('rentabilidad')}
-                        onReorderCards={onReorderHandlers.rentabilidad}
-                        onFilterClick={() => handleFilterClick('rentabilidad')}
-                        isDarkMode={isDarkMode}
-                      >
-                        {sectionCards.rentabilidad}
-                      </CarouselSection>
-
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+    // Componente mejorado para el icono hamburguesa
+    const HamburgerIcon = useCallback(() => (
+        <div className="h-6 w-6 flex items-center justify-center">
+            <svg className="block w-5 h-4" fill="none" viewBox="0 0 20 16">
+                <g>
+                    <line
+                        stroke={isDarkMode ? "#3ABE76" : "#1A6E31"}
+                        strokeLinecap="round"
+                        strokeWidth="2"
+                        x1="1"
+                        x2="19"
+                        y1="2"
+                        y2="2"
+                    />
+                    <line
+                        stroke={isDarkMode ? "#3ABE76" : "#1A6E31"}
+                        strokeLinecap="round"
+                        strokeWidth="2"
+                        x1="1"
+                        x2="19"
+                        y1="8"
+                        y2="8"
+                    />
+                    <line
+                        stroke={isDarkMode ? "#3ABE76" : "#1A6E31"}
+                        strokeLinecap="round"
+                        strokeWidth="2"
+                        x1="1"
+                        x2="19"
+                        y1="14"
+                        y2="14"
+                    />
+                </g>
+            </svg>
         </div>
+    ), [isDarkMode]);
 
-        {/* Filter Modal - Updated with new year range */}
-        <SectionFilter
-          isOpen={filterModal.isOpen}
-          onClose={handleFilterClose}
-          sectionTitle={getSectionTitle(filterModal.section)}
-          availableYears={['2024', '2025', '2026', '2027', '2028', '2029']}
-          availableCategories={filterModal.section ? getAvailableCategories(filterModal.section) : []}
-          selectedYears={filterModal.section ? sectionFilters[filterModal.section].selectedYears : []}
-          selectedCategories={filterModal.section ? sectionFilters[filterModal.section].selectedCategories : []}
-          onApplyFilters={handleApplyFilters}
-        />
-      </div>
-    </DnDProviderWrapper>
-  );
-}
+    return (
+        <DnDProviderWrapper>
+            <div className={`min-h-screen ${isDarkMode ? 'dark' : ''}`}
+                style={{ backgroundColor: isDarkMode ? '#0d0f0f' : '#f5f5f5', overflow: 'visible' }}>
+
+                {/* Layout principal con flex */}
+                <div className="flex min-h-screen relative" style={{ overflow: 'visible' }}>
+
+                    {/* Sidebar mejorado - COMPLETAMENTE sin cortes */}
+                    <div className={`sidebar-container transition-all duration-300 ease-in-out ${isSidebarOpen ? 'w-[420px]' : 'w-0'
+                        } flex-shrink-0 relative z-40`} style={{ overflow: 'visible' }}>
+                        <div className={`absolute inset-0 ${isSidebarOpen ? 'visible' : 'invisible'}`} style={{ overflow: 'visible' }}>
+                            <div className="h-full w-full p-4" style={{ overflow: 'visible', position: 'relative' }}>
+                                <Sidebar
+                                    isOpen={isSidebarOpen}
+                                    onToggle={toggleSidebar}
+                                    onParameterChange={handleParameterChange}
+                                    selectedYears={globalSelectedYears}
+                                    isDarkMode={isDarkMode}
+                                    globalParameters={globalParameters}
+                                    projectionFormulas={projectionFormulas}
+                                    isLoadingGlobalParametros={isLoadingGlobalParametros}
+                                    isLoadingFormulas={isLoadingFormulas}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Contenido principal */}
+                    <div className="flex-1 min-h-screen relative">
+                        {/* Background decoration elements */}
+                        <div
+                            className="absolute flex h-[1307.894px] items-center justify-center top-[-484px] w-[1411.386px] z-0"
+                            style={{ left: "calc(50% - 705px)" }}
+                        >
+                            <div className="flex-none rotate-[27.694deg]">
+                                <div className="h-[884px] relative w-[1130px]">
+                                    <div className="absolute bottom-[-21.619%] left-[-16.913%] right-[-16.913%] top-[-21.619%]">
+                                        <svg className="block size-full" fill="none" viewBox="0 0 1514 1268">
+                                            <g filter="url(#filter0_f_1_79956)">
+                                                <ellipse
+                                                    cx="757"
+                                                    cy="634"
+                                                    fill="#15803D"
+                                                    fillOpacity="0.14"
+                                                    rx="565"
+                                                    ry="442"
+                                                />
+                                            </g>
+                                            <defs>
+                                                <filter
+                                                    colorInterpolationFilters="sRGB"
+                                                    filterUnits="userSpaceOnUse"
+                                                    height="1266.23"
+                                                    id="filter0_f_1_79956"
+                                                    width="1512.23"
+                                                    x="0.884888"
+                                                    y="0.884888"
+                                                >
+                                                    <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                                                    <feBlend
+                                                        in="SourceGraphic"
+                                                        in2="BackgroundImageFix"
+                                                        mode="normal"
+                                                        result="shape"
+                                                    />
+                                                    <feGaussianBlur
+                                                        result="effect1_foregroundBlur_1_79956"
+                                                        stdDeviation="95.5576"
+                                                    />
+                                                </filter>
+                                            </defs>
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Contenedor principal con padding mejorado */}
+                        <div className="w-full h-full flex justify-center">
+                            <div className="w-full max-w-[1400px] min-h-screen relative px-4 sm:px-6 lg:px-8">
+
+                                {/* Layout interno mejorado */}
+                                <div className="flex gap-3 sm:gap-4 lg:gap-6 h-full relative z-10 py-4 sm:py-6 lg:py-8">
+
+                                    {/* BOTÓN TOGGLE - SOLO VISIBLE CUANDO SIDEBAR ESTÁ CERRADO */}
+                                    {!isSidebarOpen && (
+                                        <div className="flex-shrink-0 flex items-start pt-2">
+                                            <button
+                                                onClick={toggleSidebar}
+                                                className="sidebar-toggle-clean relative h-12 w-12 sm:h-14 sm:w-14 rounded-2xl shadow-lg transition-all duration-300 flex items-center justify-center z-50 group"
+                                                style={{
+                                                    backgroundColor: isDarkMode ? 'rgba(115,115,115,0.9)' : 'rgba(247,249,250,0.95)',
+                                                    border: `2px solid ${isDarkMode ? '#3ABE76' : '#1A6E31'}20`
+                                                }}
+                                                aria-label="Abrir panel de parámetros"
+                                            >
+                                                <div className="sidebar-toggle-icon-enhanced relative">
+                                                    <div className="transform transition-all duration-300 hover:scale-110">
+                                                        <HamburgerIcon />
+                                                    </div>
+                                                </div>
+
+                                                {/* Tooltip para abrir */}
+                                                <div className="absolute left-full ml-3 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-300 pointer-events-none opacity-0 group-hover:opacity-100"
+                                                    style={{
+                                                        backgroundColor: isDarkMode ? 'rgba(34,33,38,0.95)' : 'rgba(255,255,255,0.95)',
+                                                        color: isDarkMode ? '#ffffff' : '#404040',
+                                                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                                                    }}>
+                                                    Abrir parámetros
+                                                    <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent"
+                                                        style={{
+                                                            borderRightColor: isDarkMode ? 'rgba(34,33,38,0.95)' : 'rgba(255,255,255,0.95)'
+                                                        }} />
+                                                </div>
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* Contenido principal - ajustar padding cuando sidebar está abierto */}
+                                    <div className={`flex-1 flex flex-col gap-6 sm:gap-8 lg:gap-10 min-w-0 transition-all duration-300 ${isSidebarOpen ? 'pl-0' : 'pl-0'
+                                        }`}>
+
+                                        {/* Header con título y controles */}
+                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
+                                            {/* Título */}
+                                            <div className="min-w-0">
+                                                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium truncate"
+                                                    style={{ color: isDarkMode ? '#ffffff' : '#404040' }}>
+                                                    Dashboard FI
+                                                </h1>
+                                                <p className="text-lg sm:text-xl text-[#adadad] mt-1">Cliente</p>
+                                            </div>
+
+                                            {/* CONTROLES DEL HEADER - TODOS VISIBLES */}
+                                            <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
+
+                                                {/* MODE CHANGER - VISIBLE Y FUNCIONAL */}
+                                                <ModeChanger onModeChange={handleModeChange} />
+
+                                                {/* NOTIFICATION ICON - VISIBLE CON BADGE */}
+                                                <NotificationIcon
+                                                    hasNotifications={hasNotifications}
+                                                    notificationCount={notificationCount}
+                                                    onClick={handleNotificationClick}
+                                                    isDarkMode={isDarkMode}
+                                                />
+
+                                                {/* PERFIL DE USUARIO - VISIBLE CON DROPDOWN */}
+                                                <div className="relative">
+                                                    <div
+                                                        className="profile-button w-12 h-12 rounded-lg bg-center bg-cover bg-no-repeat cursor-pointer border-2 border-transparent hover:border-gray-300"
+                                                        style={{ backgroundImage: `url('/a1.png')` }}
+                                                        onClick={handleProfileClick}
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                                e.preventDefault();
+                                                                handleProfileClick();
+                                                            }
+                                                        }}
+                                                        aria-expanded={isUserDropdownOpen}
+                                                        aria-haspopup="menu"
+                                                        aria-label="Abrir menú de usuario"
+                                                    />
+
+                                                    <UserDropdown
+                                                        isOpen={isUserDropdownOpen}
+                                                        onClose={handleUserDropdownClose}
+                                                        userName="José Rodríguez"
+                                                        userRole="Administrador"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* SELECTOR DE AÑOS DINÁMICO Y VALOR EMPRESA - RESPONSIVE */}
+                                        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 lg:gap-6">
+
+                                            {/* NUEVO SELECTOR DE AÑOS DINÁMICO */}
+                                            <div className="flex-1 lg:min-w-[400px] lg:max-w-[600px]">
+                                                <GlobalYearSelector
+                                                    selectedYears={globalSelectedYears}
+                                                    onYearsChange={handleGlobalYearsChange}
+                                                    isDarkMode={isDarkMode}
+                                                />
+                                            </div>
+
+                                            {/* VALOR EMPRESA - MISMO PADDING QUE EL SELECTOR (p-4) */}
+                                            <div className="rounded-2xl p-4 border-2 flex-shrink-0"
+                                                style={{
+                                                    backgroundColor: isDarkMode ? 'rgba(115,115,115,0.4)' : '#f7f9fa',
+                                                    borderColor: isDarkMode ? '#f2f2f2' : '#d0d5dd'
+                                                }}>
+                                                <div className="flex items-center gap-2 sm:gap-3">
+                                                    <h3 className="text-lg sm:text-xl lg:text-2xl font-bold whitespace-nowrap"
+                                                        style={{ color: isDarkMode ? '#ffffff' : '#404040' }}>
+                                                        Valor empresa
+                                                    </h3>
+                                                    <span className="text-base sm:text-lg lg:text-xl font-semibold"
+                                                        style={{ color: isDarkMode ? '#3ABE76' : '#1A6E31' }}>
+                                                        {companyValue.toLocaleString('es-ES')}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-1 space-y-1">
+                                                    <span className="text-xs sm:text-sm"
+                                                        style={{ color: isDarkMode ? '#adadad' : '#9d9292' }}>
+                                                        {analysisTypeTitle}
+                                                    </span>
+                                                    {/* Data source indicator */}
+                                                    <div className="text-xs" style={{ color: isDarkMode ? '#666' : '#999' }}>
+                                                        ✅ Datos dinámicos desde API - Sistema refactorizado
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Financial Sections */}
+                                        <div className="space-y-6 sm:space-y-8 lg:space-y-10">
+
+                                            <CarouselSection
+                                                title="CRECIMIENTO SOSTENIBLE"
+                                                icon={
+                                                    <div className="relative shrink-0 size-8">
+                                                        {sections.crecimiento.icon}
+                                                    </div>
+                                                }
+                                                isExpanded={sectionStates.crecimiento}
+                                                onToggleExpansion={() => toggleSection('crecimiento')}
+                                                onReorderCards={onReorderHandlers.crecimiento}
+                                                onFilterClick={() => handleFilterClick('crecimiento')}
+                                                isDarkMode={isDarkMode}
+                                            >
+                                                {sections.crecimiento.cards}
+                                            </CarouselSection>
+
+                                            <CarouselSection
+                                                title="RIESGO FINANCIERO"
+                                                icon={
+                                                    <div className="relative shrink-0 size-8">
+                                                        {sections.riesgo.icon}
+                                                    </div>
+                                                }
+                                                isExpanded={sectionStates.riesgo}
+                                                onToggleExpansion={() => toggleSection('riesgo')}
+                                                onReorderCards={onReorderHandlers.riesgo}
+                                                onFilterClick={() => handleFilterClick('riesgo')}
+                                                isDarkMode={isDarkMode}
+                                            >
+                                                {sections.riesgo.cards}
+                                            </CarouselSection>
+
+                                            <CarouselSection
+                                                title="FLUJO DE EFECTIVO"
+                                                icon={
+                                                    <div className="relative shrink-0 size-8">
+                                                        {sections.flujo.icon}
+                                                    </div>
+                                                }
+                                                isExpanded={sectionStates.flujo}
+                                                onToggleExpansion={() => toggleSection('flujo')}
+                                                onReorderCards={onReorderHandlers.flujo}
+                                                onFilterClick={() => handleFilterClick('flujo')}
+                                                isDarkMode={isDarkMode}
+                                            >
+                                                {sections.flujo.cards}
+                                            </CarouselSection>
+
+                                            <CarouselSection
+                                                title="RENTABILIDAD DEL PATRIMONIO"
+                                                icon={
+                                                    <div className="relative shrink-0 size-8">
+                                                        {sections.rentabilidad.icon}
+                                                    </div>
+                                                }
+                                                isExpanded={sectionStates.rentabilidad}
+                                                onToggleExpansion={() => toggleSection('rentabilidad')}
+                                                onReorderCards={onReorderHandlers.rentabilidad}
+                                                onFilterClick={() => handleFilterClick('rentabilidad')}
+                                                isDarkMode={isDarkMode}
+                                            >
+                                                {sections.rentabilidad.cards}
+                                            </CarouselSection>
+
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Filter Modal - Updated with new year range */}
+                <SectionFilter
+                    isOpen={filterModal.isOpen}
+                    onClose={handleFilterClose}
+                    sectionTitle={getSectionTitle(filterModal.section)}
+                    availableYears={['2024', '2025', '2026', '2027', '2028', '2029']}
+                    availableCategories={filterModal.section ? SECTION_CARD_TITLES[filterModal.section] : []}
+                    selectedYears={filterModal.section ? sectionFilters[filterModal.section].selectedYears : []}
+                    selectedCategories={filterModal.section ? sectionFilters[filterModal.section].selectedCategories : []}
+                    onApplyFilters={handleApplyFilters}
+                />
+            </div>
+        </DnDProviderWrapper>
+    );
+} 
