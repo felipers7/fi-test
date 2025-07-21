@@ -26,7 +26,7 @@ export const titleToFormulaName = (title: string): string => {
         .replace(/[^a-z0-9_]/g, '');
 };
 
-// Service to fetch card data from API
+// Service to fetch card data from API (for REAL row)
 export const fetchCardData = async (title: string, startYear: number = 2022, endYear: number = 2029): Promise<CardDataInterface> => {
     try {
         const formulaName = titleToFormulaName(title);
@@ -83,19 +83,82 @@ export const fetchCardData = async (title: string, startYear: number = 2022, end
     }
 };
 
-// Function to process raw API data into FinancialCard format
-export const processCardData = (apiData: CardDataInterface, cardId: string, title: string): FinancialCardData => {
+// NEW: Service to fetch projected data using the same datos endpoint with projection formulas
+export const fetchProyeccionesData = async (title: string, startYear: number = 2022, endYear: number = 2029): Promise<CardDataInterface> => {
+    try {
+        // Convert title to projection formula name
+        const projectionFormulaName = titleToFormulaName(title) + '_proyeccion';
+        console.log(`Fetching proyecciones for card "${title}" using formula "${projectionFormulaName}"`);
+
+        const response = await fetch(`/api/datos?startYear=${startYear}&endYear=${endYear}&formula=${projectionFormulaName}`, {
+            method: 'GET',
+            cache: 'no-store'
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.data) {
+                return {
+                    dates: result.data.dates || [],
+                    values: result.data.values || [],
+                    result: 0, // Proyecciones don't have a single result value
+                    warning: null
+                };
+            }
+        }
+
+        // Return fallback data with '-' for all years on error
+        const years = [];
+        const fallbackValues = [];
+        for (let year = startYear; year <= endYear; year++) {
+            years.push(year.toString());
+            fallbackValues.push('-');
+        }
+
+        return {
+            dates: years,
+            values: fallbackValues,
+            result: 0,
+            warning: `Failed to fetch proyecciones for ${title}`
+        };
+    } catch (error) {
+        console.error(`Error fetching proyecciones for ${title}:`, error);
+
+        // Return fallback data with '-' for all years on error
+        const years = [];
+        const fallbackValues = [];
+        for (let year = startYear; year <= endYear; year++) {
+            years.push(year.toString());
+            fallbackValues.push('-');
+        }
+
+        return {
+            dates: years,
+            values: fallbackValues,
+            result: 0,
+            warning: `Error fetching proyecciones for ${title}`
+        };
+    }
+};
+
+// UPDATED: Function to process raw API data into FinancialCard format with proyecciones
+export const processCardData = (
+    realApiData: CardDataInterface,
+    proyeccionesApiData: CardDataInterface | null,
+    cardId: string,
+    title: string
+): FinancialCardData => {
+    const dates = realApiData.dates || ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'];
+
     return {
         id: cardId,
         title: title,
         data: {
-            dates: apiData.dates || ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
-            presupuestadoValues: Array(8).fill(0), // Row 1 - always zeros
-            realValues: apiData.values || Array(8).fill(-1), // Row 2 - API data
-            proyectadoValues: apiData.values ? apiData.values.map((v: any) =>
-                typeof v === 'string' || v === -1 ? v : Math.round(v * 1.1)
-            ) : Array(8).fill(-1), // Row 3 - projected values
-            result: apiData.result || -1
+            dates: dates,
+            presupuestadoValues: Array(dates.length).fill(0), // Row 1 - always zeros
+            realValues: realApiData.values || Array(dates.length).fill(-1), // Row 2 - real API data
+            proyectadoValues: proyeccionesApiData?.values || Array(dates.length).fill('-'), // Row 3 - backend calculated proyecciones
+            result: realApiData.result || -1
         }
     };
 };
@@ -113,5 +176,6 @@ export const SECTION_CARD_TITLES = {
         "APALANCAMIENTO", "MARGEN BRUTO", "MARGEN OPERACIONAL"
     ],
     flujo: ["FLUJO OPERACIONAL", "FLUJO INVERSIÓN", "FLUJO FINANCIAMIENTO"],
-    rentabilidad: ["ROE PROMEDIO", "ROE OPERACIONAL", "ROE AJUSTADO"]
+    rentabilidad: ["ROE PROMEDIO", "ROE OPERACIONAL", "ROE AJUSTADO"],
+    inversiones: ["INVERSIONES"]
 }; 

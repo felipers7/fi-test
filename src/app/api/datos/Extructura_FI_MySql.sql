@@ -377,11 +377,28 @@ create table formulas(
 	PRIMARY KEY (fmls_codigo)
 );
 
+
+UNID_MED 
+
+
 INSERT INTO formulas (fmls_codigo, fmls_desc, fmls_body) VALUES
     (10001, 'utilidad_basica',      "(
-  ('800001' + '800002' + '700001' + '600001' + '600002' + '600003' - '700001' - '600003' + 
+  ('800001' + 'depreciacion' + '700001' + '600001' + '600002' + '600003' - '700001' - '600003' + 
    '400001' + '500001' + '400002' + '500003' + '500004' + '400003')
-  / 'p_UNID_MED"
+  / UNID_MED
+
+900 
+
+
+
+
+
+
+
+
+UNID_MED 1000 -> 900
+
+
 ) - ('500005' / 'p_UNID_MED')'),
     (10002, 'ventas', "'800001'/ p_UNID_MED"),
     (10003, 'INTERESES A OPERACIONAL',"'500002' / p_UNID_MED" ),
@@ -478,8 +495,13 @@ p_UNID_MED"),
 
 
 INSERT INTO formulas (fmls_codigo, fmls_desc, fmls_body) VALUES
+    (10020, 'inversiones', "'100015' / p_UNID_MED"),
     (90001, 'utilidad_basica_proyeccion', 'base * (param / 100) + 250000'),
-    (90002, 'ventas_proyeccion',"(base * PROY_VENTAS) + base" );
+    (90002, 'ventas_proyeccion',"(base * PROY_VENTAS) + base" ),
+    (90003, 'ebitda_proyeccion', 'base * 1.1'),
+    (90004, 'inversiones_proyeccion',"vw_inversiones_proyeccion * p_PROY_INVERSION" ),
+    (90005, 'valor_patrimonio_proyeccion', 'base * 1.05'),
+    (90006, 'valor_deuda_proyeccion', 'base * 0.95');
 
 
 
@@ -499,4 +521,143 @@ insert into parametros (prmt_id,prmt_codigo, prmt_desc, prmt_valor ,prmt_ano) va
 (10003,'PROY_UTIL', 'proyeccion utilidad', 0.8,2025),
 (10004,'PROY_UTIL', 'proyeccion utilidad', 0.85,2026),
 (10005,'PROY_UTIL', 'proyeccion utilidad', 0.9,2027),
-(10006,'PROY_UTIL', 'proyeccion utilidad', 0.95,2029);
+(10006,'PROY_UTIL', 'proyeccion utilidad', 0.95,2029),
+(10007,'PROY_INVERSION', 'proyeccion inversion', 5,2022),
+(10008,'PROY_INVERSION', 'proyeccion inversion', 5,2023),
+(10009,'PROY_INVERSION', 'proyeccion inversion', 5,2024),
+(10010,'PROY_INVERSION', 'proyeccion inversion', 5,2025),
+(10011,'PROY_INVERSION', 'proyeccion inversion', 5,2026),
+(10012,'PROY_INVERSION', 'proyeccion inversion', 5,2027),
+(10013,'PROY_INVERSION', 'proyeccion inversion', 5,2028),
+(10014,'PROY_INVERSION', 'proyeccion inversion', 5,2029),
+(10007,'RD', 'rd ', 7.2,null),
+(10008,'RE', 'r estacionalidad', 13.2,null),
+(10009,'WACC', 'wacc', 11.6,null),
+(10010,'WACC', 'wacc ', 11.6,null),
+(80001,'PROY_INVERSION', 'proyeccion inversion', 1.15,null),
+(20000,'REM', '', 11.6,null),
+(20001,'GRL', '', 11.6,2023),
+(20002,'DEP', '', 11.6,2023),
+(20003,'MANT', '', 11.6,2023),
+(20004,'HON', '', 11.6,2023),
+(20005,'OTR', '', 11.6,2023),
+(30001,'TASA CP', '', 0.06,null),
+(30002,'TASA LP', '', 0.06,null),
+(30003,'SPREAD', '', 0.01,null),
+(30004,'BETA', '', 0.012,null),
+(30005,'CREC_RESIDUAL', '', 0.03,null),
+(30006,'RIESGO_PAIS', '', 0.06,null),
+(30007,'SPREAD_2', '', 0.01,null),
+(30008,'RF', '', 0.06,null),
+(40001,'MG_BR', 'Margen Bruto', 0.1,2023),
+(40002,'MG_BR', 'Margen Bruto', 0.1,2024),
+(40003,'MG_BR', 'Margen Bruto', 0.1,2025),
+(40004,'MG_BR', 'Margen Bruto', 0.1,2026),
+(40005,'MG_BR', 'Margen Bruto', 0.1,2027),
+(40006,'G_V_V', 'Gastos de Venta y Variables', 0.1,2023),
+(40007,'G_V_V', 'Gastos de Venta y Variables', 0.1,2024),
+(40008,'G_V_V', 'Gastos de Venta y Variables', 0.1,2025),
+(40009,'G_V_V', 'Gastos de Venta y Variables', 0.1,2026),
+(40010,'G_V_V', 'Gastos de Venta y Variables', 0.1,2027),
+(40011,'G_A_V', 'Gastos de Administracion y Ventas', 0.1,2023),
+(40012,'G_A_V', 'Gastos de Administracion y Ventas', 0.1,2024),
+(40013,'G_A_V', 'Gastos de Administracion y Ventas', 0.1,2025),
+(40014,'G_A_V', 'Gastos de Administracion y Ventas', 0.1,2026),
+(40015,'G_A_V', 'Gastos de Administracion y Ventas', 0.1,2027),
+(40016,'IMPTO', 'Impuesto', 0.1,2023),
+(40017,'IMPTO', 'Impuesto', 0.1,2024),
+(40018,'IMPTO', 'Impuesto', 0.1,2025),
+(40019,'IMPTO', 'Impuesto', 0.1,2026),
+(40020,'IMPTO', 'Impuesto', 0.1,2027),
+(50001,'CAJA', 'Caja', 0.1,2023),
+(50002,'CAJA', 'Caja', 0.1,2024),
+(50003,'CAJA', 'Caja', 0.1,2025),
+(50004,'CAJA', 'Caja', 0.1,2026),
+(50005,'CAJA', 'Caja', 0.1,2027),
+(50006,'CXC', 'Cuentas por Cobrar', 0.1,2023),
+(50007,'CXC', 'Cuentas por Cobrar', 0.1,2024),
+(50008,'CXC', 'Cuentas por Cobrar', 0.1,2025),
+(50009,'CXC', 'Cuentas por Cobrar', 0.1,2026),
+(50010,'CXC', 'Cuentas por Cobrar', 0.1,2027),
+(50011,'EXIST', 'Existencias', 0.1,2023),
+(50012,'EXIST', 'Existencias', 0.1,2024),
+(50013,'EXIST', 'Existencias', 0.1,2025),
+(50014,'EXIST', 'Existencias', 0.1,2026),
+(50015,'EXIST', 'Existencias', 0.1,2027),
+(50016,'CXP', 'Cuentas por Pagar', 0.1,2023),
+(50017,'CXP', 'Cuentas por Pagar', 0.1,2024),
+(50018,'CXP', 'Cuentas por Pagar', 0.1,2025),
+(50019,'CXP', 'Cuentas por Pagar', 0.1,2026),
+(50020,'CXP', 'Cuentas por Pagar', 0.1,2027),
+(60001,'REM', 'Remuneraciones', 0.1,2023),
+(60002,'REM', 'Remuneraciones', 0.1,2024),
+(60003,'REM', 'Remuneraciones', 0.1,2025),
+(60004,'REM', 'Remuneraciones', 0.1,2026),
+(60005,'REM', 'Remuneraciones', 0.1,2027),
+(60006,'GPER', 'Gastos de Personal', 0.1,2023),
+(60007,'GPER', 'Gastos de Personal', 0.1,2024),
+(60008,'GPER', 'Gastos de Personal', 0.1,2025),
+(60009,'GPER', 'Gastos de Personal', 0.1,2026),
+(60010,'GPER', 'Gastos de Personal', 0.1,2027),
+(60011,'SERV', 'Servicios', 0.1,2023),
+(60012,'SERV', 'Servicios', 0.1,2024),
+(60013,'SERV', 'Servicios', 0.1,2025),
+(60014,'SERV', 'Servicios', 0.1,2026),
+(60015,'SERV', 'Servicios', 0.1,2027),
+(60016,'MAT', 'Materiales', 0.1,2023),
+(60017,'MAT', 'Materiales', 0.1,2024),
+(60018,'MAT', 'Materiales', 0.1,2025),
+(60019,'MAT', 'Materiales', 0.1,2026),
+(60020,'MAT', 'Materiales', 0.1,2027),
+(60021,'ARR', 'Arriendos', 0.1,2023),
+(60022,'ARR', 'Arriendos', 0.1,2024),
+(60023,'ARR', 'Arriendos', 0.1,2025),
+(60024,'ARR', 'Arriendos', 0.1,2026),
+(60025,'ARR', 'Arriendos', 0.1,2027),
+(60026,'DEP', 'Depreciacion', 0.1,2023),
+(60027,'DEP', 'Depreciacion', 0.1,2024),
+(60028,'DEP', 'Depreciacion', 0.1,2025),
+(60029,'DEP', 'Depreciacion', 0.1,2026),
+(60030,'DEP', 'Depreciacion', 0.1,2027),
+(60031,'HERR', 'Herramientas', 0.1,2023),
+(60032,'HERR', 'Herramientas', 0.1,2024),
+(60033,'HERR', 'Herramientas', 0.1,2025),
+(60034,'HERR', 'Herramientas', 0.1,2026),
+(60035,'HERR', 'Herramientas', 0.1,2027),
+(60036,'OTR', 'Otros', 0.1,2023),
+(60037,'OTR', 'Otros', 0.1,2024),
+(60038,'OTR', 'Otros', 0.1,2025),
+(60039,'OTR', 'Otros', 0.1,2026),
+(60040,'OTR', 'Otros', 0.1,2027),
+(70001,'ENE', 'Enero', 0.1,null),
+(70002,'FEB', 'Febrero', 0.1,null),
+(70003,'MAR', 'Marzo', 0.1,null),
+(70004,'ABR', 'Abril', 0.1,null),
+(70005,'MAY', 'Mayo', 0.1,null),
+(70006,'JUN', 'Junio', 0.1,null),
+(70007,'JUL', 'Julio', 0.1,null),
+(70008,'AGO', 'Agosto', 0.1,null),
+(70009,'SEPT', 'Septiembre', 0.1,null),
+(70010,'OCT', 'Octubre', 0.1,null),
+(70011,'NOV', 'Noviembre', 0.1,null),
+(70012,'DIC', 'Diciembre', 0.1,null);
+
+
+
+UNID_MED 1000
+
+PROY_UTIL 0.8
+
+EV_ABR 0.1
+
+
+
+CREATE OR REPLACE VIEW vw_inversiones_proyeccion AS
+SELECT 2022 AS anio, 1000000.00 AS inversion UNION ALL
+SELECT 2023, 1100000.00 UNION ALL
+SELECT 2024, 1200000.00 UNION ALL
+SELECT 2025, 1300000.00 UNION ALL
+SELECT 2026, 1400000.00 UNION ALL
+SELECT 2027, 1500000.00 UNION ALL
+SELECT 2028, 1600000.00 UNION ALL
+SELECT 2029, 1700000.00;

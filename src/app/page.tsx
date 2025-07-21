@@ -9,7 +9,7 @@ import { UserDropdown } from '../components/UserDropdown';
 import { SectionFilter } from '../components/SectionFilter';
 import { Sidebar } from '../components/Sidebar';
 import { DnDProviderWrapper } from '../components/DnDProvider';
-import { fetchCardData, processCardData, SECTION_CARD_TITLES, FinancialCardData, CardDataInterface } from '../services/cardDataService';
+import { fetchCardData, fetchProyeccionesData, processCardData, SECTION_CARD_TITLES, FinancialCardData, CardDataInterface } from '../services/cardDataService';
 import svgPathsDark from "../imports/svg-ec6iy79qbc";
 
 // Define section filter states
@@ -18,11 +18,7 @@ interface SectionFilters {
     selectedCategories: string[];
 }
 
-type SectionKey = 'crecimiento' | 'riesgo' | 'flujo' | 'rentabilidad';
-
-
-
-
+type SectionKey = 'crecimiento' | 'riesgo' | 'flujo' | 'rentabilidad' | 'inversiones';
 
 
 
@@ -61,8 +57,9 @@ const YEAR_RANGES = [
 ];
 
 export default function App() {
-    // Estado para datos de todas las tarjetas
+    // Estado para datos de todas las tarjetas - UPDATED to include proyecciones
     const [cardsData, setCardsData] = useState<{ [cardId: string]: CardDataInterface }>({});
+    const [proyeccionesData, setProyeccionesData] = useState<{ [cardId: string]: CardDataInterface }>({});
     const [loadingCards, setLoadingCards] = useState<{ [cardId: string]: boolean }>({});
 
     // Global parameter states (shared between Sidebar and main page)
@@ -78,7 +75,8 @@ export default function App() {
         },
         inversiones: {
             values: {} as { [year: string]: number },
-            proyeccion: 10
+            proyeccion: 10,
+            proyecciones: {} as { [year: string]: number }
         },
         vidaUtilActivos: {
             valor: "10 años"
@@ -92,24 +90,37 @@ export default function App() {
     // Projection formulas state
     const [projectionFormulas, setProjectionFormulas] = useState<{ [formulaType: string]: string }>({});
 
-    // Function to load data for a specific card
+    // Function to load data for a specific card - UPDATED to fetch both real and proyecciones data
     const loadCardData = useCallback(async (cardId: string, title: string) => {
         setLoadingCards(prev => ({ ...prev, [cardId]: true }));
 
         try {
-            const data = await fetchCardData(title, 2022, 2029);
-            setCardsData(prev => ({ ...prev, [cardId]: data }));
+            // Fetch both real data and proyecciones data in parallel
+            const [realData, proyeccionesApiData] = await Promise.all([
+                fetchCardData(title, 2022, 2029),
+                fetchProyeccionesData(title, 2022, 2029)
+            ]);
+
+            setCardsData(prev => ({ ...prev, [cardId]: realData }));
+            setProyeccionesData(prev => ({ ...prev, [cardId]: proyeccionesApiData }));
         } catch (error) {
             console.error(`Failed to fetch data for card ${cardId}:`, error);
-            setCardsData(prev => ({
-                ...prev,
-                [cardId]: {
-                    dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
-                    values: Array(8).fill(-1),
-                    result: -1,
-                    warning: 'Failed to load'
-                }
-            }));
+            // Set fallback data for both real and proyecciones
+            const fallbackData = {
+                dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
+                values: Array(8).fill(-1),
+                result: -1,
+                warning: 'Failed to load'
+            };
+            const fallbackProyecciones = {
+                dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
+                values: Array(8).fill('-'),
+                result: 0,
+                warning: 'Failed to load proyecciones'
+            };
+
+            setCardsData(prev => ({ ...prev, [cardId]: fallbackData }));
+            setProyeccionesData(prev => ({ ...prev, [cardId]: fallbackProyecciones }));
         } finally {
             setLoadingCards(prev => ({ ...prev, [cardId]: false }));
         }
@@ -119,16 +130,22 @@ export default function App() {
     const fetchGlobalParametros = useCallback(async () => {
         try {
             setIsLoadingGlobalParametros(true);
-            const response = await fetch('/api/parametros?prmt_codigo=PROY_UTIL');
 
-            if (response.ok) {
-                const result = await response.json();
-                if (result.success && result.data && result.data.parametros) {
-                    const proyecciones: { [year: string]: number } = {};
+            // Fetch both PROY_UTIL and PROY_INVERSION parameters in parallel
+            const [utilidadResponse, inversionesResponse] = await Promise.all([
+                fetch('/api/parametros?prmt_codigo=PROY_UTIL'),
+                fetch('/api/parametros?prmt_codigo=PROY_INVERSION')
+            ]);
 
-                    result.data.parametros.forEach((param: any) => {
+            // Process PROY_UTIL parameters
+            if (utilidadResponse.ok) {
+                const utilidadResult = await utilidadResponse.json();
+                if (utilidadResult.success && utilidadResult.data && utilidadResult.data.parametros) {
+                    const proyeccionesUtilidad: { [year: string]: number } = {};
+
+                    utilidadResult.data.parametros.forEach((param: any) => {
                         if (param.prmt_ano) {
-                            proyecciones[param.prmt_ano.toString()] = param.prmt_valor;
+                            proyeccionesUtilidad[param.prmt_ano.toString()] = param.prmt_valor;
                         }
                     });
 
@@ -136,14 +153,40 @@ export default function App() {
                         ...prev,
                         utilidad: {
                             ...prev.utilidad,
-                            proyecciones: proyecciones
+                            proyecciones: proyeccionesUtilidad
                         }
                     }));
                 } else {
-                    console.warn('Parametros API returned unsuccessful response:', result);
+                    console.warn('PROY_UTIL API returned unsuccessful response:', utilidadResult);
                 }
             } else {
-                console.warn(`Parametros API request failed with status ${response.status}: ${response.statusText}`);
+                console.warn(`PROY_UTIL API request failed with status ${utilidadResponse.status}: ${utilidadResponse.statusText}`);
+            }
+
+            // Process PROY_INVERSION parameters
+            if (inversionesResponse.ok) {
+                const inversionesResult = await inversionesResponse.json();
+                if (inversionesResult.success && inversionesResult.data && inversionesResult.data.parametros) {
+                    const proyeccionesInversiones: { [year: string]: number } = {};
+
+                    inversionesResult.data.parametros.forEach((param: any) => {
+                        if (param.prmt_ano) {
+                            proyeccionesInversiones[param.prmt_ano.toString()] = param.prmt_valor;
+                        }
+                    });
+
+                    setGlobalParameters(prev => ({
+                        ...prev,
+                        inversiones: {
+                            ...prev.inversiones,
+                            proyecciones: proyeccionesInversiones
+                        }
+                    }));
+                } else {
+                    console.warn('PROY_INVERSION API returned unsuccessful response:', inversionesResult);
+                }
+            } else {
+                console.warn(`PROY_INVERSION API request failed with status ${inversionesResponse.status}: ${inversionesResponse.statusText}`);
             }
         } catch (error) {
             console.warn('Failed to fetch global parametros data (DB may be offline):', error);
@@ -184,6 +227,24 @@ export default function App() {
         }
     }, []);
 
+    // NEW: Function to reload all data when parameters change
+    const handleDataReload = useCallback(async () => {
+        console.log('Reloading all data due to parameter change...');
+
+        // Reload global parameters
+        await fetchGlobalParametros();
+
+        // Reload all card data
+        Object.entries(SECTION_CARD_TITLES).forEach(([sectionKey, titles]) => {
+            titles.forEach((title, index) => {
+                const cardId = `${sectionKey}-${index}`;
+                loadCardData(cardId, title);
+            });
+        });
+
+        console.log('Data reload completed');
+    }, [fetchGlobalParametros, loadCardData]);
+
     // Initialize card data on mount
     useEffect(() => {
         fetchGlobalParametros();
@@ -203,7 +264,8 @@ export default function App() {
         crecimiento: false,
         riesgo: false,
         flujo: false,
-        rentabilidad: false
+        rentabilidad: false,
+        inversiones: false
     });
 
     // Updated default to 4 years (2024-2027) - keeping the standard recommendation
@@ -233,6 +295,10 @@ export default function App() {
         rentabilidad: {
             selectedYears: ['2024', '2025', '2026', '2027'],
             selectedCategories: []
+        },
+        inversiones: {
+            selectedYears: ['2024', '2025', '2026', '2027'],
+            selectedCategories: []
         }
     });
 
@@ -249,7 +315,8 @@ export default function App() {
         crecimiento: [],
         riesgo: [],
         flujo: [],
-        rentabilidad: []
+        rentabilidad: [],
+        inversiones: []
     });
 
     // Función para calcular el valor de la empresa basado en los años seleccionados
@@ -299,9 +366,11 @@ export default function App() {
                     return null; // Filter out cards not in selected categories
                 }
 
-                // Process the data into FinancialCard format
+                // Process the data into FinancialCard format - UPDATED to include proyecciones
+                const rawProyeccionesData = proyeccionesData[cardId];
                 const processedData = processCardData(
                     rawData || { dates: [], values: [], result: -1 },
+                    rawProyeccionesData || null,
                     cardId,
                     title
                 );
@@ -343,6 +412,11 @@ export default function App() {
             title: "RENTABILIDAD DEL PATRIMONIO",
             cards: generateSectionCards('rentabilidad'),
             icon: <svg className="block size-full" fill="none" viewBox="0 0 32 32"><path d={svgPathsDark.p9a70c80} fill={isDarkMode ? "white" : "#404040"} /></svg>
+        },
+        inversiones: {
+            title: "INVERSIONES",
+            cards: generateSectionCards('inversiones'),
+            icon: <svg className="block size-full" fill="none" viewBox="0 0 32 32"><path d="M8 4v6h16V4h-16zm16 8H8v16h16V12zM6 2h20a2 2 0 012 2v24a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2zm6 6h8v2h-8V8zm0 4h8v2h-8v-2zm0 4h8v2h-8v-2z" fill={isDarkMode ? "white" : "#404040"} /></svg>
         }
     }), [generateSectionCards, isDarkMode]);
 
@@ -372,7 +446,8 @@ export default function App() {
             crecimiento: { ...prev.crecimiento, selectedYears: years },
             riesgo: { ...prev.riesgo, selectedYears: years },
             flujo: { ...prev.flujo, selectedYears: years },
-            rentabilidad: { ...prev.rentabilidad, selectedYears: years }
+            rentabilidad: { ...prev.rentabilidad, selectedYears: years },
+            inversiones: { ...prev.inversiones, selectedYears: years }
         }));
 
         console.log('Global years changed to:', years);
@@ -440,7 +515,8 @@ export default function App() {
             crecimiento: "CRECIMIENTO SOSTENIBLE",
             riesgo: "RIESGO FINANCIERO",
             flujo: "FLUJO DE EFECTIVO",
-            rentabilidad: "RENTABILIDAD DEL PATRIMONIO"
+            rentabilidad: "RENTABILIDAD DEL PATRIMONIO",
+            inversiones: "INVERSIONES"
         };
         return section ? titles[section] : "";
     }, []);
@@ -459,7 +535,8 @@ export default function App() {
         crecimiento: (newOrder) => handleReorder('crecimiento', newOrder),
         riesgo: (newOrder) => handleReorder('riesgo', newOrder),
         flujo: (newOrder) => handleReorder('flujo', newOrder),
-        rentabilidad: (newOrder) => handleReorder('rentabilidad', newOrder)
+        rentabilidad: (newOrder) => handleReorder('rentabilidad', newOrder),
+        inversiones: (newOrder) => handleReorder('inversiones', newOrder)
     };
 
     // Calcular valor de empresa dinámicamente
@@ -522,6 +599,7 @@ export default function App() {
                                     isOpen={isSidebarOpen}
                                     onToggle={toggleSidebar}
                                     onParameterChange={handleParameterChange}
+                                    onDataReload={handleDataReload}
                                     selectedYears={globalSelectedYears}
                                     isDarkMode={isDarkMode}
                                     globalParameters={globalParameters}
@@ -790,6 +868,22 @@ export default function App() {
                                                 isDarkMode={isDarkMode}
                                             >
                                                 {sections.rentabilidad.cards}
+                                            </CarouselSection>
+
+                                            <CarouselSection
+                                                title="INVERSIONES"
+                                                icon={
+                                                    <div className="relative shrink-0 size-8">
+                                                        {sections.inversiones.icon}
+                                                    </div>
+                                                }
+                                                isExpanded={sectionStates.inversiones}
+                                                onToggleExpansion={() => toggleSection('inversiones')}
+                                                onReorderCards={onReorderHandlers.inversiones}
+                                                onFilterClick={() => handleFilterClick('inversiones')}
+                                                isDarkMode={isDarkMode}
+                                            >
+                                                {sections.inversiones.cards}
                                             </CarouselSection>
 
                                         </div>

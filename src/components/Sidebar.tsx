@@ -5,10 +5,11 @@ interface SidebarProps {
   isOpen: boolean;
   onToggle: () => void;
   onParameterChange: (section: string, parameter: string, value: string | number) => void;
+  onDataReload?: () => void; // NEW: Callback to trigger data reload
   selectedYears: string[];
   isDarkMode?: boolean;
   globalParameters?: any;
-  projectionFormulas?: { [formulaType: string]: string }; // UPDATED: Generic formulas, not year-specific
+  projectionFormulas?: { [formulaType: string]: string };
   isLoadingGlobalParametros?: boolean;
   isLoadingFormulas?: boolean;
 }
@@ -82,6 +83,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onToggle,
   onParameterChange,
+  onDataReload, // NEW: Data reload callback
   selectedYears,
   isDarkMode = false,
   globalParameters,
@@ -91,195 +93,61 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   // Estados para las secciones colapsables
   const [sectionStates, setSectionStates] = useState({
-    utilidad: true,
     crecimientosVenta: false,
     inversiones: false,
     vidaUtilActivos: false,
     estacionalidad: false,
-    factoresFinancieros: false
+    factoresFinancieros: false,
+    operacionales: false,
+    tasasFinancieras: false,
+    margenesFinancieros: false,
+    balanceGeneral: false,
+    categoriaGastos: false,
+    estacionalidadMensual: false
   });
 
-  // Local states for Sidebar - keep this simple and working
+  // Simplified local parameters - only for parameter inputs
   const [parameters, setParameters] = useState({
-    utilidad: {
-      values: {} as { [year: string]: number },
-      result: 0,
-      proyecciones: {} as { [year: string]: number }
-    },
     crecimientosVenta: {
-      values: {} as { [year: string]: number },
       proyeccion: 10
     },
     inversiones: {
-      values: {} as { [year: string]: number },
       proyeccion: 10
     },
     vidaUtilActivos: {
       valor: "10 años"
+    },
+    // Non-yearly parameters (single values)
+    tasasFinancieras: {
+      TASA_CP: 0.06,
+      TASA_LP: 0.06,
+      SPREAD: 0.01,
+      BETA: 0.012,
+      CREC_RESIDUAL: 0.03,
+      RIESGO_PAIS: 0.06,
+      SPREAD_2: 0.01,
+      RF: 0.06
+    },
+    estacionalidadMensual: {
+      ENE: 0.1,
+      FEB: 0.1,
+      MAR: 0.1,
+      ABR: 0.1,
+      MAY: 0.1,
+      JUN: 0.1,
+      JUL: 0.1,
+      AGO: 0.1,
+      SEPT: 0.1,
+      OCT: 0.1,
+      NOV: 0.1,
+      DIC: 0.1
     }
   });
 
-  // Local loading states  
-  const [isLoadingUtilidad, setIsLoadingUtilidad] = useState(true);
-
-  // Local API fetching to populate Sidebar values independently
-  const fetchUtilidadData = async () => {
-    try {
-      setIsLoadingUtilidad(true);
-      const response = await fetch('/api/utilidad?startYear=2022&endYear=2029&formula=utilidad_basica');
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.data) {
-          const { dates, values, result: totalResult } = result.data;
-          const valuesByYear: { [year: string]: number } = {};
-          dates.forEach((year: string, index: number) => {
-            valuesByYear[year] = values[index];
-          });
-
-          setParameters(prev => ({
-            ...prev,
-            utilidad: {
-              ...prev.utilidad,
-              values: valuesByYear,
-              result: totalResult
-            }
-          }));
-        }
-      }
-    } catch (error) {
-      console.error('Sidebar: Failed to fetch utilidad data:', error);
-    } finally {
-      setIsLoadingUtilidad(false);
-    }
-  };
-
-  const fetchParametros = async () => {
-    try {
-      const response = await fetch('/api/parametros?prmt_codigo=PROY_UTIL');
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.data && result.data.parametros) {
-          const proyecciones: { [year: string]: number } = {};
-          result.data.parametros.forEach((param: any) => {
-            if (param.prmt_ano) {
-              proyecciones[param.prmt_ano.toString()] = param.prmt_valor;
-            }
-          });
-
-          setParameters(prev => ({
-            ...prev,
-            utilidad: {
-              ...prev.utilidad,
-              proyecciones: proyecciones
-            }
-          }));
-        }
-      }
-    } catch (error) {
-      console.error('Sidebar: Failed to fetch parametros:', error);
-    }
-  };
-
-  // Fetch data on mount
-  useEffect(() => {
-    fetchUtilidadData();
-    fetchParametros();
-  }, []);
-
-  // Helper function to get latest available value when year not found
-  const getLatestAvailable = useCallback((obj: { [key: string]: any }, targetYear: string): any => {
-    if (obj[targetYear]) return obj[targetYear];
-
-    // Get all available years, sort them, and find the latest one that's <= targetYear
-    const availableYears = Object.keys(obj).sort((a, b) => parseInt(b) - parseInt(a));
-    return obj[availableYears[0]] || null;
-  }, []);
-
-  // Function to get base value (just utilidad_basica, no additional formula)
-  const getBaseValue = useCallback((year: string): number => {
-    return parameters.utilidad.values[year] || 0;
-  }, [parameters.utilidad.values]);
-
-  // UPDATED: New projection evaluation using previous year's REAL value as base
-  const evaluateProjection = useCallback((currentYear: string): number | string => {
-    const currentYearNum = parseInt(currentYear);
-
-    // NEW RULE: Projection only works for 2025 onward
-    if (currentYearNum < 2025) {
-      return '-'; // Show dash for historical years where projection is impossible
-    }
-
-    const previousYear = (currentYearNum - 1).toString();
-
-    // Get the REAL value from previous year as base (not the current year)
-    const baseValue = parameters.utilidad.values[previousYear] || 0;
-
-    // Get the projection parameter for the current year
-    const paramValue = parameters.utilidad.proyecciones[currentYear];
-
-    // Get the generic formula (not year-specific anymore)
-    const formula = projectionFormulas['utilidad_basica_proyeccion'] ||
-      "base * (param / 100) + 250000"; // Updated default formula
-
-    // If no parameter for this year or no base value, return dash
-    if (!paramValue || baseValue === 0) {
-      return '-';
-    }
-
-    try {
-      // NEW: Evaluate formula using previous year's REAL value as base
-      let evaluatedFormula = formula
-        .replace(/base/g, baseValue.toString()) // Use previous year's REAL value
-        .replace(/param/g, paramValue.toString()); // Use current year's parameter
-
-      console.log(`Sidebar Projection for ${currentYear}: base=${baseValue} (from ${previousYear}), param=${paramValue}, formula="${formula}" -> "${evaluatedFormula}"`);
-
-      // Use eval for simple mathematical expressions
-      const result = eval(evaluatedFormula);
-      return Math.round(result);
-    } catch (error) {
-      console.error('Sidebar formula evaluation error:', error);
-      return '-'; // Return dash if formula fails
-    }
-  }, [parameters.utilidad.values, parameters.utilidad.proyecciones, projectionFormulas]);
-
-  // No need to fetch data - using global parameters from props
-
-  // Force re-render when projection parameters change (for real-time updates)
-  const [updateTrigger, setUpdateTrigger] = useState(0);
-
-  useEffect(() => {
-    // Force re-computation when projection parameters change
-    setUpdateTrigger(prev => prev + 1);
-    console.log('Local projection parameters changed, triggering sidebar update');
-  }, [parameters.utilidad.proyecciones]);
-
-  // COMPUTED: Filtrar años y datos basados en selectedYears - UPDATED projection logic
-  const filteredYearData = useMemo(() => {
-    const sortedYears = [...selectedYears].sort();
-    console.log('Recomputing filteredYearData, updateTrigger:', updateTrigger);
-    return {
-      years: sortedYears,
-      utilidadValues: sortedYears.map(year => ({
-        year,
-        baseValue: getBaseValue(year), // BASE: Just the base value from utilidad API
-        projectedValue: evaluateProjection(year) // PROJECTED: Using new logic with previous year's base
-      })),
-      crecimientosValues: sortedYears.map(year => ({
-        year,
-        value: parameters.crecimientosVenta.values[year] || 0
-      })),
-      inversionesValues: sortedYears.map(year => ({
-        year,
-        value: parameters.inversiones.values[year] || 0
-      }))
-    };
-  }, [selectedYears, parameters, getBaseValue, evaluateProjection, updateTrigger]);
-
-  // COMPUTED: Obtener campos de proyección basados en años seleccionados
+  // COMPUTED: Get projection fields based on selected years
   const getProjectionFields = useMemo(() => {
     const futureYears = selectedYears.filter(year => parseInt(year) >= 2025).sort();
-    return futureYears.slice(0, 3); // Máximo 3 campos de proyección
+    return futureYears.slice(0, 3); // Maximum 3 projection fields
   }, [selectedYears]);
 
   const toggleSection = (section: keyof typeof sectionStates) => {
@@ -289,30 +157,144 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }));
   };
 
-  const handleParameterChange = useCallback((section: string, parameter: string, value: string) => {
+  // Function to update parameter in database
+  const updateParameterInDB = useCallback(async (prmt_codigo: string, prmt_ano: number | null, prmt_valor: number) => {
+    try {
+      const body: any = {
+        prmt_codigo,
+        prmt_valor
+      };
+
+      // Only include prmt_ano if it's not null
+      if (prmt_ano !== null) {
+        body.prmt_ano = prmt_ano;
+      }
+
+      const response = await fetch('/api/parametros', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update parameter: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update parameter');
+      }
+
+      console.log('Parameter updated in database:', { prmt_codigo, prmt_ano, prmt_valor });
+      return true;
+    } catch (error) {
+      console.error('Failed to update parameter in database:', error);
+      return false;
+    }
+  }, []);
+
+  const handleParameterChange = useCallback(async (section: string, parameter: string, value: string) => {
     console.log(`Sidebar parameter change: ${section}.${parameter} = ${value}`);
 
-    // Update local state for real-time Sidebar updates
-    if (section === 'utilidad' && parameter.includes('proy')) {
-      const year = parameter.replace('proy', '');
-      const numValue = parseFloat(value) || 10;
+    const numValue = parseFloat(value) || 10;
 
+
+
+    // NEW: Update parameter in database for inversiones
+    if (section === 'inversiones' && parameter.includes('proy')) {
+      const year = parameter.replace('proy', '');
+
+      // Update database for persistence
+      const success = await updateParameterInDB('PROY_INVERSION', parseInt(year), numValue);
+      if (success) {
+        console.log('PROY_INVERSION parameter updated successfully, triggering data reload...');
+
+        // Trigger data reload in parent component
+        if (onDataReload) {
+          onDataReload();
+        }
+      } else {
+        console.error('Failed to persist PROY_INVERSION parameter change to database');
+        // Could show user notification here
+      }
+    }
+
+    // NEW: Handle yearly financial parameters (format: "paramCode_proy2025")
+    if (parameter.includes('_proy')) {
+      const [paramCode, yearPart] = parameter.split('_proy');
+      const year = parseInt(yearPart);
+
+      const success = await updateParameterInDB(paramCode, year, numValue);
+      if (success) {
+        console.log(`${paramCode} parameter updated successfully for year ${year}, triggering data reload...`);
+        if (onDataReload) {
+          onDataReload();
+        }
+      } else {
+        console.error(`Failed to persist ${paramCode} parameter change to database`);
+      }
+    }
+
+    // NEW: Handle non-yearly parameters (format: "paramCode")
+    if (section === 'tasasFinancieras' || section === 'estacionalidadMensual') {
+      const paramCode = parameter;
+
+      const success = await updateParameterInDB(paramCode, null, numValue);
+      if (success) {
+        console.log(`${paramCode} parameter updated successfully, triggering data reload...`);
+
+        // Update local state
+        if (section === 'tasasFinancieras') {
+          setParameters(prev => ({
+            ...prev,
+            tasasFinancieras: {
+              ...prev.tasasFinancieras,
+              [paramCode]: numValue
+            }
+          }));
+        } else if (section === 'estacionalidadMensual') {
+          setParameters(prev => ({
+            ...prev,
+            estacionalidadMensual: {
+              ...prev.estacionalidadMensual,
+              [paramCode]: numValue
+            }
+          }));
+        }
+
+        if (onDataReload) {
+          onDataReload();
+        }
+      } else {
+        console.error(`Failed to persist ${paramCode} parameter change to database`);
+      }
+    }
+
+    // Handle other parameter types (local state only)
+    if (section === 'crecimientosVenta') {
       setParameters(prev => ({
         ...prev,
-        utilidad: {
-          ...prev.utilidad,
-          proyecciones: {
-            ...prev.utilidad.proyecciones,
-            [year]: numValue
-          }
+        [section]: {
+          ...prev[section],
+          proyeccion: numValue
         }
       }));
+    }
 
+    if (section === 'vidaUtilActivos') {
+      setParameters(prev => ({
+        ...prev,
+        vidaUtilActivos: {
+          valor: value
+        }
+      }));
     }
 
     // Also notify parent component for main page updates
     onParameterChange(section, parameter, value);
-  }, [onParameterChange]);
+  }, [onParameterChange, updateParameterInDB, onDataReload]);
 
   if (!isOpen) return null;
 
@@ -392,158 +374,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex-1 overflow-y-auto">
           <div className="p-6 space-y-4">
 
-            {/* Sección UTILIDAD */}
-            <div className="space-y-3">
-              <button
-                onClick={() => toggleSection('utilidad')}
-                className={`w-full text-white rounded-lg p-4 flex items-center justify-between transition-colors ${isDarkMode
-                  ? 'bg-green-700 hover:bg-green-600'
-                  : 'bg-green-900 hover:bg-green-800'
-                  }`}
-              >
-                <span className="font-semibold text-base">UTILIDAD</span>
-                <div className={`transform transition-transform duration-200 ${sectionStates.utilidad ? 'rotate-90' : ''}`}>
-                  <svg className="size-5" fill="none" viewBox="0 0 18 18">
-                    <path d={svgPaths.p3fb14600} fill="#FAFAFA" />
-                  </svg>
-                </div>
-              </button>
 
-              {sectionStates.utilidad && (
-                <div className={`rounded-xl border shadow-sm p-5 space-y-4 ${isDarkMode
-                  ? 'bg-neutral-800 border-[#9e9e9e]'
-                  : 'bg-white border-[#e0e0e0]'
-                  }`}>
-                  {/* Headers de años */}
-                  <div className={`py-3 border-b-2 border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
-                    }`}>
-                    <div className="flex justify-between items-center">
-                      {filteredYearData.years.map(year => (
-                        <div key={year} className="flex-1 text-center">
-                          <span className={`text-base font-semibold ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'
-                            }`}>
-                            {year}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Resultado principal */}
-                  <div className={`py-3 border-b-2 border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
-                    }`}>
-                    <div className="flex justify-center flex-col space-y-2">
-                      <div className="text-center">
-                        <span className={`text-lg font-bold ${isDarkMode ? 'text-[#ff2e2e]' : 'text-[#b00020]'
-                          }`}>
-                          RESULTADO: {isLoadingUtilidad ? 'Cargando...' : (parameters.utilidad.result || 0).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* FILA 1 - Primera fila (ceros) */}
-                  <div className={`py-3 border-b border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
-                    }`}>
-                    <div className="flex justify-between items-center">
-                      <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`}>
-                        PRESUPUESTADO
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center mt-2">
-                      {filteredYearData.years.map(year => (
-                        <div key={year} className="flex-1 text-center">
-                          <span className={`text-base font-semibold ${isDarkMode ? 'text-[#3acfff]' : 'text-[#2e649d]'
-                            }`}>
-                            0
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* FILA 2 - Valores base por año */}
-                  <div className={`py-3 border-b border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
-                    }`}>
-                    <div className="flex justify-between items-center">
-                      <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`}>
-                        REAL
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center mt-2">
-                      {filteredYearData.utilidadValues.map(({ year, baseValue }) => (
-                        <div key={year} className="flex-1 text-center">
-                          <span className={`text-base font-semibold ${isDarkMode ? 'text-[#3acfff]' : 'text-[#2e649d]'
-                            }`}>
-                            {isLoadingUtilidad ? '...' : baseValue.toLocaleString()}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* FILA 3 - Valores proyectados por año - UPDATED display logic */}
-                  <div className={`py-3 border-b-2 border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
-                    }`}>
-                    <div className="flex justify-between items-center">
-                      <span className={`text-sm font-medium ${isDarkMode ? 'text-[#3ABE76]' : 'text-[#1a6e31]'}`}>
-                        PROYECTADO
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center mt-2">
-                      {filteredYearData.utilidadValues.map(({ year, projectedValue }) => (
-                        <div key={year} className="flex-1 text-center">
-                          <span className={`text-base font-bold ${isDarkMode ? 'text-[#3ABE76]' : 'text-[#1a6e31]'
-                            }`}>
-                            {isLoadingUtilidad || isLoadingFormulas ? '...' :
-                              (typeof projectedValue === 'string' ? projectedValue : projectedValue.toLocaleString())}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Fila PROY con campos editables */}
-                  <div className="py-3">
-                    <div className="flex items-center justify-between">
-                      <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'
-                        }`}>
-                        PROY
-                      </span>
-                      <div className="flex gap-3 items-center">
-                        {/* Espaciado para años históricos */}
-                        {selectedYears.some(year => parseInt(year) < 2025) && (
-                          <div className="flex">
-                            {selectedYears.filter(year => parseInt(year) < 2025).map(year => (
-                              <div key={year} className="w-16"></div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Campos editables para años futuros */}
-                        {isLoadingGlobalParametros ? (
-                          <div className="flex gap-3">
-                            {getProjectionFields.map(year => (
-                              <div key={`loading-${year}`} className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
-                            ))}
-                          </div>
-                        ) : (
-                          getProjectionFields.map(year => (
-                            <EditableField
-                              key={`proy-${year}`}
-                              value={globalParameters?.utilidad.proyecciones[year] || 10}
-                              onChange={(value) => handleParameterChange('utilidad', `proy${year}`, value)}
-                              type="percentage"
-                              isDarkMode={isDarkMode}
-                            />
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
 
             {/* Sección CRECIMIENTOS DE VENTA */}
             <div className="space-y-3">
@@ -567,65 +398,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   ? 'bg-neutral-800 border-[#9e9e9e]'
                   : 'bg-white border-[#e0e0e0]'
                   }`}>
-                  {/* Headers de años */}
-                  <div className={`py-3 border-b-2 border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
-                    }`}>
-                    <div className="flex justify-between items-center">
-                      {filteredYearData.years.map(year => (
-                        <div key={year} className="flex-1 text-center">
-                          <span className={`text-base font-semibold ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'
-                            }`}>
-                            {year}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+
+                  <div className="text-center">
+                    <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                      Parámetros de crecimiento de ventas
+                    </span>
                   </div>
 
-                  {/* Valores por año */}
-                  <div className={`py-3 border-b-2 border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
-                    }`}>
-                    <div className="flex justify-between items-center">
-                      {filteredYearData.crecimientosValues.map(({ year, value }) => (
-                        <div key={year} className="flex-1 text-center">
-                          <span className={`text-base font-semibold ${isDarkMode ? 'text-[#3acfff]' : 'text-[#2e649d]'
-                            }`}>
-                            {value.toLocaleString()}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Fila PROY */}
-                  <div className="py-3">
-                    <div className="flex items-center justify-between">
-                      <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'
-                        }`}>
-                        PROY
-                      </span>
-                      <div className="flex gap-3 items-center">
-                        {/* Espaciado para años históricos */}
-                        {selectedYears.some(year => parseInt(year) < 2025) && (
-                          <div className="flex">
-                            {selectedYears.filter(year => parseInt(year) < 2025).map(year => (
-                              <div key={year} className="w-16"></div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Campos editables limitados a 2 para esta sección */}
-                        {getProjectionFields.slice(0, 2).map((year, index) => (
-                          <EditableField
-                            key={`crecimiento-proy-${year}-${index}`}
-                            value={parameters.crecimientosVenta.proyeccion}
-                            onChange={(value) => handleParameterChange('crecimientosVenta', `proyeccion${index + 1}`, value)}
-                            type="percentage"
-                            isDarkMode={isDarkMode}
-                          />
-                        ))}
+                  {/* Parameter fields limited to 2 for this section */}
+                  <div className="space-y-4">
+                    {getProjectionFields.slice(0, 2).map((year, index) => (
+                      <div key={`crecimiento-param-${year}-${index}`} className="flex items-center justify-between">
+                        <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                          Proyección {index + 1}:
+                        </span>
+                        <EditableField
+                          value={parameters.crecimientosVenta.proyeccion}
+                          onChange={(value) => handleParameterChange('crecimientosVenta', `proyeccion${index + 1}`, value)}
+                          type="percentage"
+                          isDarkMode={isDarkMode}
+                        />
                       </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -653,66 +447,60 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   ? 'bg-neutral-800 border-[#9e9e9e]'
                   : 'bg-white border-[#e0e0e0]'
                   }`}>
-                  {/* Headers de años */}
-                  <div className={`py-3 border-b-2 border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
-                    }`}>
-                    <div className="flex justify-between items-center">
-                      {filteredYearData.years.map(year => (
-                        <div key={year} className="flex-1 text-center">
-                          <span className={`text-base font-semibold ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'
-                            }`}>
+
+                  {/* Header description */}
+                  <div className="text-center">
+                    <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                      Parámetros de proyección para inversiones
+                    </span>
+                  </div>
+
+                  {/* Table/Grid format for investment projections */}
+                  <div className="overflow-x-auto">
+                    <div className="min-w-max">
+                      {/* Header row with years */}
+                      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                        <div className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
+                          Proyección
+                        </div>
+                        {getProjectionFields.map(year => (
+                          <div key={year} className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
                             {year}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Valores por año */}
-                  <div className={`py-3 border-b-2 border-dashed ${isDarkMode ? 'border-neutral-600' : 'border-neutral-300'
-                    }`}>
-                    <div className="flex justify-between items-center">
-                      {filteredYearData.inversionesValues.map(({ year, value }) => (
-                        <div key={year} className="flex-1 text-center">
-                          <span className={`text-base font-semibold ${isDarkMode ? 'text-[#3acfff]' : 'text-[#2e649d]'
-                            }`}>
-                            {value.toLocaleString()}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Fila PROY */}
-                  <div className="py-3">
-                    <div className="flex items-center justify-between">
-                      <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'
-                        }`}>
-                        PROY
-                      </span>
-                      <div className="flex gap-3 items-center">
-                        {/* Espaciado para años históricos */}
-                        {selectedYears.some(year => parseInt(year) < 2025) && (
-                          <div className="flex">
-                            {selectedYears.filter(year => parseInt(year) < 2025).map(year => (
-                              <div key={year} className="w-16"></div>
-                            ))}
                           </div>
-                        )}
+                        ))}
+                      </div>
 
-                        {/* Campos editables limitados a 2 para esta sección */}
-                        {getProjectionFields.slice(0, 2).map((year, index) => (
-                          <EditableField
-                            key={`inversiones-proy-${year}-${index}`}
-                            value={parameters.inversiones.proyeccion}
-                            onChange={(value) => handleParameterChange('inversiones', `proyeccion${index + 1}`, value)}
-                            type="percentage"
-                            isDarkMode={isDarkMode}
-                          />
+                      {/* Investment projection row */}
+                      <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                        <div className={`text-sm font-medium py-2 ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                          Inversiones
+                        </div>
+                        {getProjectionFields.map(year => (
+                          <div key={`inversiones-param-${year}`} className="flex justify-center">
+                            {isLoadingGlobalParametros ? (
+                              <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
+                            ) : (
+                              <EditableField
+                                value={globalParameters?.inversiones?.proyecciones?.[year] || 5}
+                                onChange={(value) => handleParameterChange('inversiones', `proy${year}`, value)}
+                                type="number"
+                                isDarkMode={isDarkMode}
+                              />
+                            )}
+                          </div>
                         ))}
                       </div>
                     </div>
                   </div>
+
+                  {/* Loading indicator */}
+                  {isLoadingGlobalParametros && (
+                    <div className="text-center">
+                      <span className={`text-xs ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                        Cargando parámetros...
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -795,33 +583,267 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
             </div>
 
-            {/* Sección FACTORES FINANCIEROS */}
-            <div className={`mt-8 pt-6 border-t ${isDarkMode ? 'border-[#9e9e9e]' : 'border-[#d0d5dd]'}`}>
-              <div className="flex items-center gap-4 mb-6">
-                <div className="relative shrink-0 size-8">
-                  <svg className="block size-full" fill="none" viewBox="0 0 32 32">
-                    <path d={svgPaths.p366d9c00} fill={isDarkMode ? "#ffffff" : "#404040"} />
+            {/* Sección TASAS FINANCIERAS (30000s) */}
+            <div className="space-y-3">
+              <button
+                onClick={() => toggleSection('tasasFinancieras')}
+                className={`w-full text-white rounded-lg p-4 flex items-center justify-between transition-colors ${isDarkMode
+                  ? 'bg-green-700 hover:bg-green-600'
+                  : 'bg-green-900 hover:bg-green-800'
+                  }`}
+              >
+                <span className="font-semibold text-base">TASAS FINANCIERAS</span>
+                <div className={`transform transition-transform duration-200 ${sectionStates.tasasFinancieras ? 'rotate-90' : ''}`}>
+                  <svg className="size-5" fill="none" viewBox="0 0 18 18">
+                    <path d={svgPaths.p3fb14600} fill="#FAFAFA" />
                   </svg>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`font-medium text-base ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'
-                    }`}>
-                    FACTORES FINANCIEROS
-                  </span>
-                  <div className="relative shrink-0 size-4">
-                    <svg className="block size-full" fill="none" viewBox="0 0 16 16">
-                      <circle cx="8" cy="8" r="5.89762" stroke="#ADADAD" strokeWidth="1.5" />
-                      <path d="M8 4.81787V9.08756" stroke="#ADADAD" strokeLinecap="round" strokeWidth="1.5" />
-                      <path d="M8 10.6713L8 10.9089" stroke="#ADADAD" strokeLinecap="round" strokeWidth="1.5" />
-                    </svg>
+              </button>
+
+              {sectionStates.tasasFinancieras && (
+                <div className={`rounded-xl border shadow-sm p-5 space-y-4 ${isDarkMode
+                  ? 'bg-neutral-800 border-[#9e9e9e]'
+                  : 'bg-white border-[#e0e0e0]'
+                  }`}>
+
+                  <div className="text-center">
+                    <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                      Tasas y factores financieros
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {[
+                      { code: 'TASA_CP', label: 'Tasa Corto Plazo' },
+                      { code: 'TASA_LP', label: 'Tasa Largo Plazo' },
+                      { code: 'SPREAD', label: 'Spread' },
+                      { code: 'BETA', label: 'Beta' },
+                      { code: 'CREC_RESIDUAL', label: 'Crecimiento Residual' },
+                      { code: 'RIESGO_PAIS', label: 'Riesgo País' },
+                      { code: 'RF', label: 'Tasa Libre Riesgo' }
+                    ].map(({ code, label }) => (
+                      <div key={code} className="flex items-center justify-between">
+                        <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                          {label}:
+                        </span>
+                        <EditableField
+                          value={parameters.tasasFinancieras[code as keyof typeof parameters.tasasFinancieras]}
+                          onChange={(value) => handleParameterChange('tasasFinancieras', code, value)}
+                          type="number"
+                          isDarkMode={isDarkMode}
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
+              )}
+            </div>
 
-              <div className={`text-center text-sm py-8 ${isDarkMode ? 'text-neutral-500' : 'text-neutral-600'
-                }`}>
-                Sección disponible próximamente
-              </div>
+            {/* Sección MÁRGENES FINANCIEROS (40000s) */}
+            <div className="space-y-3">
+              <button
+                onClick={() => toggleSection('margenesFinancieros')}
+                className={`w-full text-white rounded-lg p-4 flex items-center justify-between transition-colors ${isDarkMode
+                  ? 'bg-green-700 hover:bg-green-600'
+                  : 'bg-green-900 hover:bg-green-800'
+                  }`}
+              >
+                <span className="font-semibold text-base">MÁRGENES FINANCIEROS</span>
+                <div className={`transform transition-transform duration-200 ${sectionStates.margenesFinancieros ? 'rotate-90' : ''}`}>
+                  <svg className="size-5" fill="none" viewBox="0 0 18 18">
+                    <path d={svgPaths.p3fb14600} fill="#FAFAFA" />
+                  </svg>
+                </div>
+              </button>
+
+              {sectionStates.margenesFinancieros && (
+                <div className={`rounded-xl border shadow-sm p-5 space-y-4 ${isDarkMode
+                  ? 'bg-neutral-800 border-[#9e9e9e]'
+                  : 'bg-white border-[#e0e0e0]'
+                  }`}>
+
+                  <div className="text-center">
+                    <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                      Márgenes y ratios financieros por año
+                    </span>
+                  </div>
+
+                  {/* Table/Grid format for parameters by year */}
+                  <div className="overflow-x-auto">
+                    <div className="min-w-max">
+                      {/* Header row with years */}
+                      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                        <div className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
+                          Parámetro
+                        </div>
+                        {getProjectionFields.map(year => (
+                          <div key={year} className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
+                            {year}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Parameter rows */}
+                      {[
+                        { code: 'MG_BR', label: 'Margen Bruto' },
+                        { code: 'G_V_V', label: 'Gastos Venta Variables' },
+                        { code: 'G_A_V', label: 'Gastos Admin y Ventas' },
+                        { code: 'IMPTO', label: 'Impuesto' }
+                      ].map(({ code, label }) => (
+                        <div key={code} className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                          <div className={`text-sm font-medium py-2 truncate ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`} title={label}>
+                            {label}
+                          </div>
+                          {getProjectionFields.map(year => (
+                            <div key={`${code}-${year}`} className="flex justify-center">
+                              <EditableField
+                                value={0.1} // Default value, should be replaced with actual data
+                                onChange={(value) => handleParameterChange('margenesFinancieros', `${code}_proy${year}`, value)}
+                                type="number"
+                                isDarkMode={isDarkMode}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Sección BALANCE GENERAL (50000s) */}
+            <div className="space-y-3">
+              <button
+                onClick={() => toggleSection('balanceGeneral')}
+                className={`w-full text-white rounded-lg p-4 flex items-center justify-between transition-colors ${isDarkMode
+                  ? 'bg-green-700 hover:bg-green-600'
+                  : 'bg-green-900 hover:bg-green-800'
+                  }`}
+              >
+                <span className="font-semibold text-base">BALANCE GENERAL</span>
+                <div className={`transform transition-transform duration-200 ${sectionStates.balanceGeneral ? 'rotate-90' : ''}`}>
+                  <svg className="size-5" fill="none" viewBox="0 0 18 18">
+                    <path d={svgPaths.p3fb14600} fill="#FAFAFA" />
+                  </svg>
+                </div>
+              </button>
+
+              {sectionStates.balanceGeneral && (
+                <div className={`rounded-xl border shadow-sm p-5 space-y-4 ${isDarkMode
+                  ? 'bg-neutral-800 border-[#9e9e9e]'
+                  : 'bg-white border-[#e0e0e0]'
+                  }`}>
+
+                  <div className="text-center">
+                    <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                      Parámetros de balance general por año
+                    </span>
+                  </div>
+
+                  {/* Table/Grid format for parameters by year */}
+                  <div className="overflow-x-auto">
+                    <div className="min-w-max">
+                      {/* Header row with years */}
+                      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                        <div className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
+                          Parámetro
+                        </div>
+                        {getProjectionFields.map(year => (
+                          <div key={year} className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
+                            {year}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Parameter rows */}
+                      {[
+                        { code: 'CAJA', label: 'Caja' },
+                        { code: 'CXC', label: 'Cuentas por Cobrar' },
+                        { code: 'EXIST', label: 'Existencias' },
+                        { code: 'CXP', label: 'Cuentas por Pagar' }
+                      ].map(({ code, label }) => (
+                        <div key={code} className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                          <div className={`text-sm font-medium py-2 truncate ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`} title={label}>
+                            {label}
+                          </div>
+                          {getProjectionFields.map(year => (
+                            <div key={`${code}-${year}`} className="flex justify-center">
+                              <EditableField
+                                value={0.1} // Default value, should be replaced with actual data
+                                onChange={(value) => handleParameterChange('balanceGeneral', `${code}_proy${year}`, value)}
+                                type="number"
+                                isDarkMode={isDarkMode}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Sección ESTACIONALIDAD MENSUAL (70000s) */}
+            <div className="space-y-3">
+              <button
+                onClick={() => toggleSection('estacionalidadMensual')}
+                className={`w-full text-white rounded-lg p-4 flex items-center justify-between transition-colors ${isDarkMode
+                  ? 'bg-green-700 hover:bg-green-600'
+                  : 'bg-green-900 hover:bg-green-800'
+                  }`}
+              >
+                <span className="font-semibold text-base">ESTACIONALIDAD MENSUAL</span>
+                <div className={`transform transition-transform duration-200 ${sectionStates.estacionalidadMensual ? 'rotate-90' : ''}`}>
+                  <svg className="size-5" fill="none" viewBox="0 0 18 18">
+                    <path d={svgPaths.p3fb14600} fill="#FAFAFA" />
+                  </svg>
+                </div>
+              </button>
+
+              {sectionStates.estacionalidadMensual && (
+                <div className={`rounded-xl border shadow-sm p-5 space-y-4 ${isDarkMode
+                  ? 'bg-neutral-800 border-[#9e9e9e]'
+                  : 'bg-white border-[#e0e0e0]'
+                  }`}>
+
+                  <div className="text-center">
+                    <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                      Factores de estacionalidad mensual
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { code: 'ENE', label: 'Enero' },
+                      { code: 'FEB', label: 'Febrero' },
+                      { code: 'MAR', label: 'Marzo' },
+                      { code: 'ABR', label: 'Abril' },
+                      { code: 'MAY', label: 'Mayo' },
+                      { code: 'JUN', label: 'Junio' },
+                      { code: 'JUL', label: 'Julio' },
+                      { code: 'AGO', label: 'Agosto' },
+                      { code: 'SEPT', label: 'Septiembre' },
+                      { code: 'OCT', label: 'Octubre' },
+                      { code: 'NOV', label: 'Noviembre' },
+                      { code: 'DIC', label: 'Diciembre' }
+                    ].map(({ code, label }) => (
+                      <div key={code} className="flex items-center justify-between">
+                        <span className={`text-xs font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                          {label}:
+                        </span>
+                        <EditableField
+                          value={parameters.estacionalidadMensual[code as keyof typeof parameters.estacionalidadMensual]}
+                          onChange={(value) => handleParameterChange('estacionalidadMensual', code, value)}
+                          type="number"
+                          isDarkMode={isDarkMode}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
           </div>

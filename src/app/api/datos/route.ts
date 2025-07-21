@@ -22,6 +22,99 @@ async function connectToDatabase() {
     }
 }
 
+// NEW: Get value from database view for specific year
+async function getViewValue(viewName: string, year: number): Promise<number> {
+    const connection = await connectToDatabase();
+
+    try {
+        // For the specific view vw_inversiones_proyeccion, we know it has columns 'anio' and 'inversion'
+        // This could be made more generic in the future if needed
+        let query: string;
+        let columnName: string;
+
+        if (viewName === 'vw_inversiones_proyeccion') {
+            query = `SELECT inversion FROM ${viewName} WHERE anio = ?`;
+            columnName = 'inversion';
+        } else {
+            // Generic approach for other views - assumes 'anio' and 'valor' columns
+            query = `SELECT valor FROM ${viewName} WHERE anio = ?`;
+            columnName = 'valor';
+        }
+
+        console.log(`Querying view ${viewName} for year ${year}`);
+        const [rows] = await connection.execute(query, [year]);
+        await connection.end();
+
+        const results = rows as any[];
+        if (results.length > 0) {
+            const value = parseFloat(results[0][columnName] || results[0].inversion || results[0].valor || 0);
+            console.log(`View ${viewName} for year ${year}: ${value}`);
+            return value;
+        } else {
+            console.warn(`No data found in view ${viewName} for year ${year}`);
+            return 0;
+        }
+    } catch (error) {
+        await connection.end();
+        console.error(`Failed to get value from view ${viewName} for year ${year}:`, error);
+        return 0;
+    }
+}
+
+// NEW: Get parameter value for a specific parameter code and year
+async function getParameterValue(prmt_codigo: string, year?: number): Promise<number> {
+    const connection = await connectToDatabase();
+
+    try {
+        let query: string;
+        let queryParams: any[];
+
+        if (year) {
+            // Try to get year-specific parameter first
+            query = `
+                SELECT prmt_valor 
+                FROM parametros 
+                WHERE prmt_codigo = ? AND prmt_ano = ?
+                LIMIT 1
+            `;
+            queryParams = [prmt_codigo, year];
+            console.log(`Getting year-specific parameter: ${prmt_codigo} for year ${year}`);
+        } else {
+            // Fallback to non-year parameter
+            query = `
+                SELECT prmt_valor 
+                FROM parametros 
+                WHERE prmt_codigo = ? AND prmt_ano IS NULL
+                LIMIT 1
+            `;
+            queryParams = [prmt_codigo];
+            console.log(`Getting general parameter: ${prmt_codigo}`);
+        }
+
+        const [rows] = await connection.execute(query, queryParams);
+        const results = rows as any[];
+
+        if (results.length > 0) {
+            const value = parseFloat(results[0].prmt_valor);
+            console.log(`Parameter ${prmt_codigo} (year: ${year || 'null'}): ${value}`);
+            await connection.end();
+            return value;
+        } else if (year) {
+            // If year-specific parameter not found, try the general one
+            console.log(`Year-specific parameter not found, trying general parameter...`);
+            await connection.end();
+            return await getParameterValue(prmt_codigo); // Recursive call without year
+        } else {
+            console.warn(`Parameter ${prmt_codigo} not found`);
+            await connection.end();
+            return 0;
+        }
+    } catch (error) {
+        await connection.end();
+        console.error(`Failed to get parameter ${prmt_codigo}:`, error);
+        return 0;
+    }
+}
 
 //parametros para formulas de anterior / 2024 / reales
 //parametros para formulas proyección
@@ -31,11 +124,11 @@ function parseCodesFromFormula(formula: string): { accountCodes: string[], param
     const accountCodes = new Set<string>();
     const parameterCodes = new Set<string>();
 
-    // Match anything inside quotes - handle both single and double quotes
-    const regex = /["']([^"']+)["']/g;
+    // 1. Match anything inside quotes - handle both single and double quotes
+    const quotedRegex = /["']([^"']+)["']/g;
     let match;
 
-    while ((match = regex.exec(formula)) !== null) {
+    while ((match = quotedRegex.exec(formula)) !== null) {
         const content = match[1];
 
         if (/^\d+$/.test(content)) {
@@ -46,6 +139,16 @@ function parseCodesFromFormula(formula: string): { accountCodes: string[], param
             const paramCode = content.substring(2); // Remove 'p_' prefix
             parameterCodes.add(paramCode);
         }
+    }
+
+    // 2. Also match unquoted parameter patterns (p_PARAM_NAME)
+    const unquotedParamRegex = /p_([A-Z_][A-Z0-9_]*)/g;
+    let paramMatch;
+
+    while ((paramMatch = unquotedParamRegex.exec(formula)) !== null) {
+        const paramCode = paramMatch[1]; // Extract the part after 'p_'
+        parameterCodes.add(paramCode);
+        console.log(`Found unquoted parameter: p_${paramCode} -> ${paramCode}`);
     }
 
     console.log(`Formula: ${formula}`);
@@ -237,6 +340,67 @@ function replaceParametersInFormula(formula: string, parameters: { [key: string]
     return processedFormula;
 }
 
+// ========== ENHANCED FORMULA EVALUATOR ==========
+// NEW: Simple projection formula evaluator for formulas with views and parameters
+async function evaluateProjectionFormula(formula: string, year: number): Promise<number> {
+    try {
+        console.log(`\n=== PROJECTION FORMULA EVALUATION FOR YEAR ${year} ===`);
+        console.log(`Original formula: "${formula}"`);
+
+        let evaluatedFormula = formula;
+
+        // Check for database views (vw_ pattern) and replace with actual values
+        const viewPattern = /vw_[a-zA-Z_][a-zA-Z0-9_]*/g;
+        const viewMatches = evaluatedFormula.match(viewPattern);
+
+        if (viewMatches) {
+            console.log(`Found ${viewMatches.length} view references:`, viewMatches);
+            for (const viewName of viewMatches) {
+                console.log(`Querying view: ${viewName} for year ${year}`);
+                const viewValue = await getViewValue(viewName, year);
+                console.log(`View ${viewName} returned value: ${viewValue}`);
+                evaluatedFormula = evaluatedFormula.replace(new RegExp(viewName, 'g'), viewValue.toString());
+                console.log(`Formula after view substitution: "${evaluatedFormula}"`);
+            }
+        } else {
+            console.log(`No view references found in formula`);
+        }
+
+        // Check for parameter references (p_ pattern) and replace with actual values
+        const paramPattern = /p_[a-zA-Z_][a-zA-Z0-9_]*/g;
+        const paramMatches = evaluatedFormula.match(paramPattern);
+
+        if (paramMatches) {
+            console.log(`Found ${paramMatches.length} parameter references:`, paramMatches);
+            for (const paramRef of paramMatches) {
+                const paramCode = paramRef.substring(2); // Remove 'p_' prefix
+                console.log(`Querying parameter: ${paramRef} (code: ${paramCode}) for year ${year}`);
+                const paramValue = await getParameterValue(paramCode, year);
+                console.log(`Parameter ${paramRef} returned value: ${paramValue}`);
+                evaluatedFormula = evaluatedFormula.replace(new RegExp(paramRef.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), paramValue.toString());
+                console.log(`Formula after parameter substitution: "${evaluatedFormula}"`);
+            }
+        } else {
+            console.log(`No parameter references found in formula`);
+        }
+
+        console.log(`Final formula for evaluation: "${evaluatedFormula}"`);
+
+        // Use eval for mathematical expressions (be careful in production)
+        const result = eval(evaluatedFormula);
+        console.log(`Evaluation result: ${result}`);
+        console.log(`Rounded result: ${Math.round(result)}`);
+        console.log(`=== END PROJECTION FORMULA EVALUATION ===\n`);
+
+        return Math.round(result);
+    } catch (error) {
+        console.error('Projection formula evaluation error:', error);
+        console.error('Formula that failed:', formula);
+        console.log(`=== END PROJECTION FORMULA EVALUATION (ERROR) ===\n`);
+        return 0;
+    }
+}
+
 // ========== MATH.JS DATABASE FORMULA EVALUATOR ==========
 async function evaluateDatabaseFormula(allData: any[], year: number, formulaString: string, parameterCodes: string[]): Promise<number> {
     const yearData = allData.filter(item => item.ano === year);
@@ -415,10 +579,31 @@ export async function GET(request: Request) {
             });
         }
 
-        // 5. Evaluate formula for each year using the cached data and parameters
+        // 5. Determine evaluation method and calculate results for each year
         const results: { [year: number]: number } = {};
+
+        // Check if formula contains views (vw_) or standalone parameter references (p_)
+        // This indicates a projection formula that should use simple evaluation
+        const hasViews = /vw_[a-zA-Z_][a-zA-Z0-9_]*/.test(formula);
+        const hasStandaloneParams = /p_[a-zA-Z_][a-zA-Z0-9_]*/.test(formula);
+        const isProjectionFormula = hasViews || (hasStandaloneParams && !formula.includes('SUM') && !formula.includes('COUNT'));
+
+        console.log(`=== FORMULA ANALYSIS FOR ${formulaName} ===`);
+        console.log(`Raw formula from DB: "${rawFormula}"`);
+        console.log(`Processed formula: "${formula}"`);
+        console.log(`Has views: ${hasViews}`);
+        console.log(`Has standalone params: ${hasStandaloneParams}`);
+        console.log(`Is projection formula: ${isProjectionFormula}`);
+        console.log(`===============================`);
+
         for (let year = startYear; year <= endYear; year++) {
-            results[year] = await evaluateDatabaseFormula(allFinancialData, year, formula, parameterCodes);
+            if (isProjectionFormula) {
+                console.log(`Using projection formula evaluator for year ${year}`);
+                results[year] = await evaluateProjectionFormula(formula, year);
+            } else {
+                console.log(`Using mathjs database evaluator for year ${year}`);
+                results[year] = await evaluateDatabaseFormula(allFinancialData, year, formula, parameterCodes);
+            }
         }
 
         // Prepare response
