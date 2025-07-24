@@ -1,14 +1,6 @@
 import { NextResponse } from 'next/server';
 import mysql from 'mysql2/promise';
-
-// Database configuration
-const dbConfig = {
-    host: 'localhost',
-    user: 'root',
-    password: '1234',
-    database: 'fi',
-    port: 3306
-};
+import { dbConfig } from '../../../lib/db';
 
 // Create MySQL connection
 async function connectToDatabase() {
@@ -54,6 +46,25 @@ async function getParametros(prmt_codigo?: string): Promise<any[]> {
     } catch (error) {
         await connection.end();
         console.error('Database query failed:', error);
+        throw error;
+    }
+}
+
+// Execute financial projection calculation stored procedure
+async function executeFinancialProjectionCalculation(): Promise<void> {
+    const connection = await connectToDatabase();
+
+    try {
+        console.log('Executing financial projection calculation...');
+
+        // Execute the stored procedure
+        await connection.execute('CALL calcular_proyeccion_financiera_modelo()');
+
+        console.log('Financial projection calculation completed successfully');
+        await connection.end();
+    } catch (error) {
+        await connection.end();
+        console.error('Failed to execute financial projection calculation:', error);
         throw error;
     }
 }
@@ -181,9 +192,12 @@ export async function PUT(request: Request) {
         // Update parameter in database
         await updateParametros(prmt_codigo, prmt_ano, prmt_valor);
 
+        // Execute financial projection calculation after parameter update
+        await executeFinancialProjectionCalculation();
+
         return NextResponse.json({
             success: true,
-            message: 'Parameter updated successfully',
+            message: 'Parameter updated successfully and financial projections recalculated',
             data: {
                 prmt_codigo,
                 prmt_ano,

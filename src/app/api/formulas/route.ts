@@ -1,14 +1,6 @@
 import { NextResponse } from 'next/server';
 import mysql from 'mysql2/promise';
-
-// Database configuration
-const dbConfig = {
-    host: 'localhost',
-    user: 'root',
-    password: '1234',
-    database: 'fi',
-    port: 3306
-};
+import { dbConfig } from '../../../lib/db';
 
 // Create MySQL connection
 async function connectToDatabase() {

@@ -58,8 +58,11 @@ export const ModeChanger: React.FC<ModeChangerProps> = ({ onModeChange }) => {
   useEffect(() => {
     // Detectar el modo inicial del sistema
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    setIsDark(mediaQuery.matches);
-    
+    const initialDarkMode = mediaQuery.matches;
+    setIsDark(initialDarkMode);
+    // Notify parent component about the initial system preference
+    onModeChange(initialDarkMode);
+
     const handleChange = (e: MediaQueryListEvent) => {
       setIsDark(e.matches);
       onModeChange(e.matches);
@@ -80,29 +83,28 @@ export const ModeChanger: React.FC<ModeChangerProps> = ({ onModeChange }) => {
       onClick={handleToggle}
       className="mode-changer-toggle relative h-[38px] w-[72px] rounded-full border border-[#9e9e9e] transition-all duration-300 hover:scale-105 overflow-hidden"
       style={{
-        background: isDark 
-          ? 'rgba(34,33,38,0.5)' 
+        background: isDark
+          ? 'rgba(34,33,38,0.5)'
           : 'rgba(247,249,250,0.95)'
       }}
       aria-label={`Cambiar a modo ${isDark ? 'claro' : 'oscuro'}`}
     >
       {/* Fondo base que cubre todo */}
-      <div 
+      <div
         className="absolute inset-0 rounded-full"
         style={{
-          background: isDark 
-            ? 'rgba(34,33,38,0.5)' 
+          background: isDark
+            ? 'rgba(34,33,38,0.5)'
             : 'rgba(247,249,250,0.95)'
         }}
       />
-      
+
       {/* Elipse activo que se mueve */}
-      <div 
-        className={`absolute top-0 h-[38px] w-[38px] transition-all duration-300 ease-in-out overflow-hidden ${
-          isDark ? 'left-0' : 'left-[34px]'
-        }`}
+      <div
+        className={`absolute top-0 h-[38px] w-[38px] transition-all duration-300 ease-in-out overflow-hidden ${isDark ? 'left-0' : 'left-[34px]'
+          }`}
       >
-        <div 
+        <div
           className="w-full h-full rounded-full"
           style={{
             background: isDark ? "#4350AF" : "#FFC000"

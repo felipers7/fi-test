@@ -9,7 +9,7 @@ import { UserDropdown } from '../components/UserDropdown';
 import { SectionFilter } from '../components/SectionFilter';
 import { Sidebar } from '../components/Sidebar';
 import { DnDProviderWrapper } from '../components/DnDProvider';
-import { fetchCardData, fetchProyeccionesData, processCardData, SECTION_CARD_TITLES, FinancialCardData, CardDataInterface } from '../services/cardDataService';
+import { fetchCardData, processCardData, SECTION_CARD_TITLES, FinancialCardData, CardDataInterface } from '../services/cardDataService';
 import svgPathsDark from "../imports/svg-ec6iy79qbc";
 
 // Define section filter states
@@ -57,9 +57,8 @@ const YEAR_RANGES = [
 ];
 
 export default function App() {
-    // Estado para datos de todas las tarjetas - UPDATED to include proyecciones
+    // Estado para datos de todas las tarjetas - SIMPLIFIED: single data source for both real and projected
     const [cardsData, setCardsData] = useState<{ [cardId: string]: CardDataInterface }>({});
-    const [proyeccionesData, setProyeccionesData] = useState<{ [cardId: string]: CardDataInterface }>({});
     const [loadingCards, setLoadingCards] = useState<{ [cardId: string]: boolean }>({});
 
     // Global parameter states (shared between Sidebar and main page)
@@ -90,37 +89,25 @@ export default function App() {
     // Projection formulas state
     const [projectionFormulas, setProjectionFormulas] = useState<{ [formulaType: string]: string }>({});
 
-    // Function to load data for a specific card - UPDATED to fetch both real and proyecciones data
+    // Function to load data for a specific card - SIMPLIFIED: single data source
     const loadCardData = useCallback(async (cardId: string, title: string) => {
         setLoadingCards(prev => ({ ...prev, [cardId]: true }));
 
         try {
-            // Fetch both real data and proyecciones data in parallel
-            const [realData, proyeccionesApiData] = await Promise.all([
-                fetchCardData(title, 2022, 2029),
-                fetchProyeccionesData(title, 2022, 2029)
-            ]);
-
-            setCardsData(prev => ({ ...prev, [cardId]: realData }));
-            setProyeccionesData(prev => ({ ...prev, [cardId]: proyeccionesApiData }));
+            // Fetch data from the view-based API endpoint
+            const cardData = await fetchCardData(title, 2022, 2029);
+            setCardsData(prev => ({ ...prev, [cardId]: cardData }));
         } catch (error) {
             console.error(`Failed to fetch data for card ${cardId}:`, error);
-            // Set fallback data for both real and proyecciones
+            // Set fallback data
             const fallbackData = {
                 dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
                 values: Array(8).fill(-1),
                 result: -1,
                 warning: 'Failed to load'
             };
-            const fallbackProyecciones = {
-                dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
-                values: Array(8).fill('-'),
-                result: 0,
-                warning: 'Failed to load proyecciones'
-            };
 
             setCardsData(prev => ({ ...prev, [cardId]: fallbackData }));
-            setProyeccionesData(prev => ({ ...prev, [cardId]: fallbackProyecciones }));
         } finally {
             setLoadingCards(prev => ({ ...prev, [cardId]: false }));
         }
@@ -199,7 +186,7 @@ export default function App() {
     const fetchProjectionFormulas = useCallback(async () => {
         try {
             setIsLoadingFormulas(true);
-            const response = await fetch('/api/formulas?fmls_desc=utilidad_basica_proyeccion');
+            const response = await fetch('/api/formulas?fmls_desc=utilidad_proy');
 
             if (response.ok) {
                 const result = await response.json();
@@ -366,11 +353,17 @@ export default function App() {
                     return null; // Filter out cards not in selected categories
                 }
 
-                // Process the data into FinancialCard format - UPDATED to include proyecciones
-                const rawProyeccionesData = proyeccionesData[cardId];
+                // Process the data into FinancialCard format - SIMPLIFIED: single data source
+                // Ensure we have proper fallback data with all years
+                const defaultData = {
+                    dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
+                    values: Array(8).fill(-1),
+                    result: -1
+                };
+
                 const processedData = processCardData(
-                    rawData || { dates: [], values: [], result: -1 },
-                    rawProyeccionesData || null,
+                    rawData || defaultData,
+                    null, // No longer using separate proyecciones data
                     cardId,
                     title
                 );
@@ -725,16 +718,16 @@ export default function App() {
                                                 {/* MODE CHANGER - VISIBLE Y FUNCIONAL */}
                                                 <ModeChanger onModeChange={handleModeChange} />
 
-                                                {/* NOTIFICATION ICON - VISIBLE CON BADGE */}
-                                                <NotificationIcon
+                                                {/* NOTIFICATION ICON - HIDDEN/COMMENTED OUT */}
+                                                {/* <NotificationIcon
                                                     hasNotifications={hasNotifications}
                                                     notificationCount={notificationCount}
                                                     onClick={handleNotificationClick}
                                                     isDarkMode={isDarkMode}
-                                                />
+                                                /> */}
 
-                                                {/* PERFIL DE USUARIO - VISIBLE CON DROPDOWN */}
-                                                <div className="relative">
+                                                {/* PERFIL DE USUARIO - HIDDEN/COMMENTED OUT */}
+                                                {/* <div className="relative">
                                                     <div
                                                         className="profile-button w-12 h-12 rounded-lg bg-center bg-cover bg-no-repeat cursor-pointer border-2 border-transparent hover:border-gray-300"
                                                         style={{ backgroundImage: `url('/a1.png')` }}
@@ -758,7 +751,7 @@ export default function App() {
                                                         userName="José Rodríguez"
                                                         userRole="Administrador"
                                                     />
-                                                </div>
+                                                </div> */}
                                             </div>
                                         </div>
 

@@ -26,7 +26,7 @@ export const titleToFormulaName = (title: string): string => {
         .replace(/[^a-z0-9_]/g, '');
 };
 
-// Service to fetch card data from API (for REAL row)
+// Service to fetch card data from API - UPDATED for view-based approach
 export const fetchCardData = async (title: string, startYear: number = 2022, endYear: number = 2029): Promise<CardDataInterface> => {
     try {
         const formulaName = titleToFormulaName(title);
@@ -83,72 +83,44 @@ export const fetchCardData = async (title: string, startYear: number = 2022, end
     }
 };
 
-// NEW: Service to fetch projected data using the same datos endpoint with projection formulas
-export const fetchProyeccionesData = async (title: string, startYear: number = 2022, endYear: number = 2029): Promise<CardDataInterface> => {
-    try {
-        // Convert title to projection formula name
-        const projectionFormulaName = titleToFormulaName(title) + '_proyeccion';
-        console.log(`Fetching proyecciones for card "${title}" using formula "${projectionFormulaName}"`);
+// REMOVED: fetchProyeccionesData - no longer needed as both real and projected data come from same view
+// The separation will be handled in processCardData based on year logic
 
-        const response = await fetch(`/api/datos?startYear=${startYear}&endYear=${endYear}&formula=${projectionFormulaName}`, {
-            method: 'GET',
-            cache: 'no-store'
-        });
-
-        if (response.ok) {
-            const result = await response.json();
-            if (result.success && result.data) {
-                return {
-                    dates: result.data.dates || [],
-                    values: result.data.values || [],
-                    result: 0, // Proyecciones don't have a single result value
-                    warning: null
-                };
-            }
-        }
-
-        // Return fallback data with '-' for all years on error
-        const years = [];
-        const fallbackValues = [];
-        for (let year = startYear; year <= endYear; year++) {
-            years.push(year.toString());
-            fallbackValues.push('-');
-        }
-
-        return {
-            dates: years,
-            values: fallbackValues,
-            result: 0,
-            warning: `Failed to fetch proyecciones for ${title}`
-        };
-    } catch (error) {
-        console.error(`Error fetching proyecciones for ${title}:`, error);
-
-        // Return fallback data with '-' for all years on error
-        const years = [];
-        const fallbackValues = [];
-        for (let year = startYear; year <= endYear; year++) {
-            years.push(year.toString());
-            fallbackValues.push('-');
-        }
-
-        return {
-            dates: years,
-            values: fallbackValues,
-            result: 0,
-            warning: `Error fetching proyecciones for ${title}`
-        };
-    }
-};
-
-// UPDATED: Function to process raw API data into FinancialCard format with proyecciones
+// UPDATED: Function to process raw API data into FinancialCard format with year-based logic
+// Now uses the same data source for both real and projected values, separated by year
 export const processCardData = (
-    realApiData: CardDataInterface,
-    proyeccionesApiData: CardDataInterface | null,
+    apiData: CardDataInterface,
+    proyeccionesApiData: CardDataInterface | null, // Keep for backward compatibility but not used
     cardId: string,
     title: string
 ): FinancialCardData => {
-    const dates = realApiData.dates || ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'];
+    const dates = apiData.dates || ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'];
+    const currentYear = 2024; // Data up to 2024 is "real", 2025+ is "projected"
+
+    // Process values based on year logic
+    const realValues: (number | string)[] = [];
+    const proyectadoValues: (number | string)[] = [];
+
+    dates.forEach((dateStr, index) => {
+        const year = parseInt(dateStr);
+        const value = apiData.values?.[index];
+
+        if (year <= currentYear) {
+            // Past and current years: Use as real data in second row
+            realValues.push(value ?? -1);
+            proyectadoValues.push('-'); // No projection for past years
+        } else {
+            // Future years: Use as projected data in third row
+            realValues.push('-'); // No real data for future years yet
+            proyectadoValues.push(value ?? '-');
+        }
+    });
+
+    // Calculate result only from real values (past/current years)
+    const realNumericValues = realValues.filter(v => typeof v === 'number' && v !== -1) as number[];
+    const calculatedResult = realNumericValues.length > 0
+        ? realNumericValues.reduce((sum, val) => sum + val, 0)
+        : (apiData.result !== -1 ? apiData.result : -1);
 
     return {
         id: cardId,
@@ -156,26 +128,49 @@ export const processCardData = (
         data: {
             dates: dates,
             presupuestadoValues: Array(dates.length).fill(0), // Row 1 - always zeros
-            realValues: realApiData.values || Array(dates.length).fill(-1), // Row 2 - real API data
-            proyectadoValues: proyeccionesApiData?.values || Array(dates.length).fill('-'), // Row 3 - backend calculated proyecciones
-            result: realApiData.result || -1
+            realValues: realValues, // Row 2 - real data for years <= 2024
+            proyectadoValues: proyectadoValues, // Row 3 - projections for years >= 2025
+            result: calculatedResult
         }
     };
 };
 
-// Card titles organized by section
+// NEW: For backward compatibility, keep the old fetchProyeccionesData but make it return empty
+export const fetchProyeccionesData = async (title: string, startYear: number = 2022, endYear: number = 2029): Promise<CardDataInterface> => {
+    console.log(`fetchProyeccionesData called for ${title} but is no longer used - returning empty data`);
+
+    // Return empty data since projections are now handled in the same view
+    const years = [];
+    for (let year = startYear; year <= endYear; year++) {
+        years.push(year.toString());
+    }
+
+    return {
+        dates: years,
+        values: Array(years.length).fill('-'),
+        result: 0,
+        warning: 'Proyecciones are now handled in the main view'
+    };
+};
+
+// Card titles organized by section - UPDATED to match available database views
 export const SECTION_CARD_TITLES = {
     crecimiento: [
-        "VALOR PATRIMONIO", "UTILIDAD", "EBITDA", "INTERESES A OPERACIONAL",
-        "VALOR DEUDA", "CRECIMIENTO PATRIMONIO", "CREACIÓN DE VALOR",
-        "RENTABILIDAD PATRIMONIO", "RENTABILIDAD CAPITAL"
+        "UTILIDAD", "EBITDA", "VALOR PATRIMONIO", "INTERESES A OPERACIONAL",
+        "VALOR DEUDA", "CRECIMIENTO PATRIMONIO", "CREACION DE VALOR"
     ],
     riesgo: [
-        "LIQUIDEZ CORRIENTE", "PRUEBA ÁCIDA", "ROTACIÓN INVENTARIOS",
-        "DÍAS COBRANZA", "ENDEUDAMIENTO TOTAL", "COBERTURA INTERESES",
-        "APALANCAMIENTO", "MARGEN BRUTO", "MARGEN OPERACIONAL"
+        "SOLVENCIA", "LIQUIDEZ", "NIVEL DE DEUDA", "DIVIDENDOS", "CREDITO NETO"
     ],
-    flujo: ["FLUJO OPERACIONAL", "FLUJO INVERSIÓN", "FLUJO FINANCIAMIENTO"],
-    rentabilidad: ["ROE PROMEDIO", "ROE OPERACIONAL", "ROE AJUSTADO"],
-    inversiones: ["INVERSIONES"]
+    flujo: [
+        "FUENTES DE FONDO", "CAJA", "USOS DE FONDO", "FLUJO OPERATIVO",
+        "PAGO DIVIDENDOS", "FLUJO INVERSIONES", "CREDITO", "CAPITAL DE TRABAJO", "CAJA PERIODO"
+    ],
+    rentabilidad: [
+        "RENTABILIDAD PATRIMONIO", "RENTABILIDAD CAPITAL", "UTILIDAD NETA",
+        "ROTACION DE ACTIVOS", "PALANCA FINANCIERA"
+    ],
+    inversiones: [
+        "INVERSIONES"
+    ]
 }; 

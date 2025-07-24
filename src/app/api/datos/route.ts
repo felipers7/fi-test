@@ -1,15 +1,6 @@
 import { NextResponse } from 'next/server';
-import { create, all } from 'mathjs';
 import mysql from 'mysql2/promise';
-
-// Database configuration
-const dbConfig = {
-    host: 'localhost',
-    user: 'root',
-    password: '1234',
-    database: 'fi',
-    port: 3306
-};
+import { dbConfig } from '../../../lib/db';
 
 // Create MySQL connection
 async function connectToDatabase() {
@@ -22,45 +13,93 @@ async function connectToDatabase() {
     }
 }
 
-// NEW: Get value from database view for specific year
-async function getViewValue(viewName: string, year: number): Promise<number> {
+// NEW: Card title to view name mapping
+const CARD_TO_VIEW_MAPPING: { [key: string]: string } = {
+    // Crecimiento sostenible
+    'utilidad': 'vw_utilidad',
+    'ebitda': 'vw_EBITDA',
+    'valor_patrimonio': 'vw_valor_patrimonio',
+    'intereses_a_operacional': 'vw_intereses_operacionales',
+    'valor_deuda': 'vw_valor_deuda',
+    'crecimiento_patrimonio': 'vw_crecimiento_patrimonio',
+    'creacion_de_valor': 'vw_creacion_de_valor',
+
+    // Rentabilidad del patrimonio
+    'rentabilidad_patrimonio': 'vw_rentabilidad_de_patrimonio',
+    'rentabilidad_capital': 'vw_rentabilidad_del_capital',
+    'utilidad_neta': 'vw_utilidad_neta',
+    'rotacion_de_activos': 'vw_rotacion_de_activos',
+    'palanca_financiera': 'vw_palanca_financiera',
+
+    // Inversiones
+    'inversiones': 'vw_inversiones',
+
+    // Flujo de efectivo
+    'fuentes_de_fondo': 'vw_fuentes_de_fondo',
+    'caja': 'vw_caja',
+    'usos_de_fondo': 'vw_usos_de_fondo',
+    'flujo_operativo': 'vw_flujo_operativo',
+    'pago_dividendos': 'vw_pago_dividendos',
+    'flujo_inversiones': 'vw_flujo_inversiones',
+    'credito': 'vw_credito',
+    'capital_de_trabajo': 'vw_capital_de_trabajo',
+    'caja_periodo': 'vw_caja_periodo',
+
+    // Riesgo financiero
+    'solvencia': 'vw_solvencia',
+    'liquidez': 'vw_liquidez',
+    'nivel_de_deuda': 'vw_nivel_de_deuda',
+    'dividendos': 'vw_dividendos',
+    'credito_neto': 'vw_credito_neto'
+};
+
+// NEW: Get data from database view for year range
+async function getViewDataForYears(viewName: string, startYear: number, endYear: number): Promise<{ [year: number]: number }> {
     const connection = await connectToDatabase();
 
     try {
-        // For the specific view vw_inversiones_proyeccion, we know it has columns 'anio' and 'inversion'
-        // This could be made more generic in the future if needed
-        let query: string;
-        let columnName: string;
+        const query = `SELECT periodo, valor FROM ${viewName} WHERE periodo BETWEEN ? AND ? ORDER BY periodo`;
+        console.log(`Querying view ${viewName} for years ${startYear}-${endYear}`);
+        console.log(`SQL Query: ${query} with params: [${startYear}, ${endYear}]`);
 
-        if (viewName === 'vw_inversiones_proyeccion') {
-            query = `SELECT inversion FROM ${viewName} WHERE anio = ?`;
-            columnName = 'inversion';
-        } else {
-            // Generic approach for other views - assumes 'anio' and 'valor' columns
-            query = `SELECT valor FROM ${viewName} WHERE anio = ?`;
-            columnName = 'valor';
-        }
-
-        console.log(`Querying view ${viewName} for year ${year}`);
-        const [rows] = await connection.execute(query, [year]);
+        const [rows] = await connection.execute(query, [startYear, endYear]);
         await connection.end();
 
         const results = rows as any[];
-        if (results.length > 0) {
-            const value = parseFloat(results[0][columnName] || results[0].inversion || results[0].valor || 0);
-            console.log(`View ${viewName} for year ${year}: ${value}`);
-            return value;
-        } else {
-            console.warn(`No data found in view ${viewName} for year ${year}`);
-            return 0;
+        console.log(`Query results for ${viewName}:`, results);
+
+        const yearData: { [year: number]: number } = {};
+
+        results.forEach((row: any) => {
+            const year = parseInt(row.periodo);
+            const value = parseFloat(row.valor || 0);
+            yearData[year] = value;
+            console.log(`View ${viewName} year ${year}: ${value}`);
+        });
+
+        // Fill in missing years with 0
+        for (let year = startYear; year <= endYear; year++) {
+            if (!(year in yearData)) {
+                yearData[year] = 0;
+                console.log(`View ${viewName} year ${year}: 0 (missing)`);
+            }
         }
+
+        return yearData;
     } catch (error) {
         await connection.end();
-        console.error(`Failed to get value from view ${viewName} for year ${year}:`, error);
-        return 0;
+        console.error(`Failed to get data from view ${viewName}:`, error);
+
+        // Return zeros for all years on error
+        const errorData: { [year: number]: number } = {};
+        for (let year = startYear; year <= endYear; year++) {
+            errorData[year] = 0;
+        }
+        return errorData;
     }
 }
 
+// LEGACY: Keep old formula-based system as backup
 // NEW: Get parameter value for a specific parameter code and year
 async function getParameterValue(prmt_codigo: string, year?: number): Promise<number> {
     const connection = await connectToDatabase();
@@ -116,9 +155,6 @@ async function getParameterValue(prmt_codigo: string, year?: number): Promise<nu
     }
 }
 
-//parametros para formulas de anterior / 2024 / reales
-//parametros para formulas proyección
-
 // Parse formula to extract both account codes and parameter codes
 function parseCodesFromFormula(formula: string): { accountCodes: string[], parameterCodes: string[] } {
     const accountCodes = new Set<string>();
@@ -161,7 +197,7 @@ function parseCodesFromFormula(formula: string): { accountCodes: string[], param
     };
 }
 
-// Fix malformed formulas (specifically for utilidad_basica)
+// Fix malformed formulas and normalize syntax
 function preprocessFormula(formula: string): string {
     let processed = formula;
 
@@ -349,17 +385,31 @@ async function evaluateProjectionFormula(formula: string, year: number): Promise
 
         let evaluatedFormula = formula;
 
-        // Check for database views (vw_ pattern) and replace with actual values
-        const viewPattern = /vw_[a-zA-Z_][a-zA-Z0-9_]*/g;
+        // Check for database views (vw_ pattern) with optional field names and replace with actual values
+        const viewPattern = /vw_[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)?/g;
         const viewMatches = evaluatedFormula.match(viewPattern);
 
         if (viewMatches) {
             console.log(`Found ${viewMatches.length} view references:`, viewMatches);
-            for (const viewName of viewMatches) {
-                console.log(`Querying view: ${viewName} for year ${year}`);
-                const viewValue = await getViewValue(viewName, year);
-                console.log(`View ${viewName} returned value: ${viewValue}`);
-                evaluatedFormula = evaluatedFormula.replace(new RegExp(viewName, 'g'), viewValue.toString());
+            for (const viewRef of viewMatches) {
+                let viewName: string;
+                let fieldName: string | undefined;
+
+                // Check if it has dot notation (view.field)
+                if (viewRef.includes('.')) {
+                    const [view, field] = viewRef.split('.');
+                    viewName = view;
+                    fieldName = field;
+                    console.log(`Querying view: ${viewName}, field: ${fieldName} for year ${year}`);
+                } else {
+                    viewName = viewRef;
+                    fieldName = undefined;
+                    console.log(`Querying view: ${viewName} for year ${year}`);
+                }
+
+                const viewValue = await getViewValue(viewName, year, fieldName);
+                console.log(`View ${viewRef} returned value: ${viewValue}`);
+                evaluatedFormula = evaluatedFormula.replace(new RegExp(viewRef.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), viewValue.toString());
                 console.log(`Formula after view substitution: "${evaluatedFormula}"`);
             }
         } else {
@@ -401,6 +451,57 @@ async function evaluateProjectionFormula(formula: string, year: number): Promise
     }
 }
 
+// Get value from database view for specific year and field
+async function getViewValue(viewName: string, year: number, fieldName?: string): Promise<number> {
+    const connection = await connectToDatabase();
+
+    try {
+        let query: string;
+        let columnName: string;
+        let yearColumnName: string;
+
+        // Determine year column name based on view
+        if (viewName === 'vw_modelo') {
+            yearColumnName = 'periodo';
+        } else {
+            yearColumnName = 'periodo'; // Updated to use 'periodo' for all views
+        }
+
+        // Determine field/column name
+        if (fieldName) {
+            // Specific field requested (from dot notation)
+            columnName = fieldName;
+            query = `SELECT ${fieldName} FROM ${viewName} WHERE ${yearColumnName} = ?`;
+        } else {
+            // Generic approach for all views - assumes 'valor' column
+            query = `SELECT valor FROM ${viewName} WHERE ${yearColumnName} = ?`;
+            columnName = 'valor';
+        }
+
+        console.log(`Querying view ${viewName} for year ${year} (${yearColumnName}), field: ${fieldName || columnName}`);
+        console.log(`SQL Query: ${query} with params: [${year}]`);
+
+        const [rows] = await connection.execute(query, [year]);
+        await connection.end();
+
+        const results = rows as any[];
+        console.log(`Query results:`, results);
+
+        if (results.length > 0) {
+            const value = parseFloat(results[0][columnName] || 0);
+            console.log(`View ${viewName}.${columnName} for year ${year}: ${value}`);
+            return value;
+        } else {
+            console.warn(`No data found in view ${viewName} for year ${year}`);
+            return 0;
+        }
+    } catch (error) {
+        await connection.end();
+        console.error(`Failed to get value from view ${viewName} for year ${year}, field ${fieldName}:`, error);
+        return 0;
+    }
+}
+
 // ========== MATH.JS DATABASE FORMULA EVALUATOR ==========
 async function evaluateDatabaseFormula(allData: any[], year: number, formulaString: string, parameterCodes: string[]): Promise<number> {
     const yearData = allData.filter(item => item.ano === year);
@@ -417,6 +518,7 @@ async function evaluateDatabaseFormula(allData: any[], year: number, formulaStri
     console.log(`Final formula for evaluation: ${processedFormula}`);
 
     // Create math.js instance
+    const { create, all } = await import('mathjs');
     const math = create(all, {});
 
     // Add custom functions to math.js scope
@@ -488,11 +590,53 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const startYear = parseInt(searchParams.get('startYear') || '2024');
         const endYear = parseInt(searchParams.get('endYear') || '2027');
-        const formulaName = searchParams.get('formula') || 'utilidad_basica';
+        const formulaName = searchParams.get('formula') || 'utilidad';
         const debug = searchParams.get('debug') === 'true'; // Add debug mode
 
         console.log(`=== Starting API request ===`);
         console.log(`Parameters: startYear=${startYear}, endYear=${endYear}, formula=${formulaName}, debug=${debug}`);
+
+        // NEW: Check if this is a view-based formula (preferred method)
+        const viewName = CARD_TO_VIEW_MAPPING[formulaName];
+
+        if (viewName) {
+            console.log(`Using VIEW-BASED approach for formula ${formulaName} -> view ${viewName}`);
+
+            try {
+                // Get data from the corresponding view
+                const viewData = await getViewDataForYears(viewName, startYear, endYear);
+
+                // Prepare response
+                const years = Object.keys(viewData).map(year => year.toString()).sort();
+                const values = years.map(year => viewData[parseInt(year)]);
+                const total = values.reduce((sum, value) => sum + value, 0);
+
+                console.log('View-based results by year:', viewData);
+                console.log(`=== API request completed successfully using VIEW ${viewName} ===`);
+
+                return NextResponse.json({
+                    success: true,
+                    data: {
+                        dates: years,
+                        values: values,
+                        result: total,
+                        formula: null,
+                        originalFormula: null,
+                        method: 'view_based',
+                        view_name: viewName,
+                        formula_name: formulaName
+                    }
+                });
+            } catch (viewError) {
+                console.warn(`View-based approach failed for ${formulaName}, falling back to formula-based approach:`, viewError);
+                // Fall through to legacy formula-based approach
+            }
+        } else {
+            console.log(`No view mapping found for formula ${formulaName}, using FORMULA-BASED approach`);
+        }
+
+        // LEGACY: Fall back to formula-based approach
+        console.log(`Using LEGACY FORMULA-BASED approach for formula ${formulaName}`);
 
         // 1. Get formula from database
         const rawFormula = await getFormulaFromDB(formulaName);
@@ -516,12 +660,10 @@ export async function GET(request: Request) {
                     originalFormula: null,
                     method: 'formula_not_found',
                     formula_name: formulaName,
-                    warning: `Formula '${formulaName}' not found in database`
+                    warning: `Formula '${formulaName}' not found in database and no view mapping exists`
                 }
             });
         }
-
-        //eval 
 
         // 2. Preprocess formula to fix syntax and convert account codes to SUM() functions
         const formula = preprocessFormula(rawFormula);
@@ -529,7 +671,13 @@ export async function GET(request: Request) {
         // 3. Parse formula to determine which account codes and parameters we need
         const { accountCodes, parameterCodes } = parseCodesFromFormula(formula);
 
-        if (accountCodes.length === 0 && parameterCodes.length === 0) {
+        // Check if formula contains views (vw_) or standalone parameter references (p_)
+        // This indicates a projection formula that should use simple evaluation
+        const hasViews = /vw_[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)?/.test(formula);
+        const hasStandaloneParams = /p_[a-zA-Z_][a-zA-Z0-9_]*/.test(formula);
+        const isProjectionFormula = hasViews || (hasStandaloneParams && !formula.includes('SUM') && !formula.includes('COUNT'));
+
+        if (accountCodes.length === 0 && parameterCodes.length === 0 && !isProjectionFormula) {
             console.warn(`No codes found in formula: ${formula}`);
             // Return default response when no codes found
             return NextResponse.json({
@@ -582,18 +730,14 @@ export async function GET(request: Request) {
         // 5. Determine evaluation method and calculate results for each year
         const results: { [year: number]: number } = {};
 
-        // Check if formula contains views (vw_) or standalone parameter references (p_)
-        // This indicates a projection formula that should use simple evaluation
-        const hasViews = /vw_[a-zA-Z_][a-zA-Z0-9_]*/.test(formula);
-        const hasStandaloneParams = /p_[a-zA-Z_][a-zA-Z0-9_]*/.test(formula);
-        const isProjectionFormula = hasViews || (hasStandaloneParams && !formula.includes('SUM') && !formula.includes('COUNT'));
-
         console.log(`=== FORMULA ANALYSIS FOR ${formulaName} ===`);
         console.log(`Raw formula from DB: "${rawFormula}"`);
         console.log(`Processed formula: "${formula}"`);
         console.log(`Has views: ${hasViews}`);
         console.log(`Has standalone params: ${hasStandaloneParams}`);
         console.log(`Is projection formula: ${isProjectionFormula}`);
+        console.log(`Account codes found: ${accountCodes}`);
+        console.log(`Parameter codes found: ${parameterCodes}`);
         console.log(`===============================`);
 
         for (let year = startYear; year <= endYear; year++) {
