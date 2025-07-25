@@ -9,8 +9,10 @@ import { UserDropdown } from '../components/UserDropdown';
 import { SectionFilter } from '../components/SectionFilter';
 import { Sidebar } from '../components/Sidebar';
 import { DnDProviderWrapper } from '../components/DnDProvider';
-import { fetchCardData, processCardData, SECTION_CARD_TITLES, FinancialCardData, CardDataInterface } from '../services/cardDataService';
+import { fetchCardData, fetchBudgetData, processCardData, SECTION_CARD_TITLES, FinancialCardData, CardDataInterface } from '../services/cardDataService';
 import svgPathsDark from "../imports/svg-ec6iy79qbc";
+
+
 
 // Define section filter states
 interface SectionFilters {
@@ -57,8 +59,9 @@ const YEAR_RANGES = [
 ];
 
 export default function App() {
-    // Estado para datos de todas las tarjetas - SIMPLIFIED: single data source for both real and projected
+    // Estado para datos de todas las tarjetas - now includes budget data
     const [cardsData, setCardsData] = useState<{ [cardId: string]: CardDataInterface }>({});
+    const [budgetData, setBudgetData] = useState<{ [cardId: string]: CardDataInterface }>({});
     const [loadingCards, setLoadingCards] = useState<{ [cardId: string]: boolean }>({});
 
     // Global parameter states (shared between Sidebar and main page)
@@ -79,6 +82,53 @@ export default function App() {
         },
         vidaUtilActivos: {
             valor: "10 años"
+        },
+        // Non-yearly parameters (single values from database)
+        tasasFinancieras: {
+            TASA_CP: 0,
+            TASA_LP: 0,
+            SPREAD: 0,
+            BETA: 0,
+            CREC_RESIDUAL: 0,
+            RIESGO_PAIS: 0,
+            SPREAD_2: 0,
+            RF: 0
+        },
+        estacionalidadMensual: {
+            ENE: 0,
+            FEB: 0,
+            MAR: 0,
+            ABR: 0,
+            MAY: 0,
+            JUN: 0,
+            JUL: 0,
+            AGO: 0,
+            SEPT: 0,
+            OCT: 0,
+            NOV: 0,
+            DIC: 0
+        },
+        valorizacion: {
+            RD: 0,
+            RE: 0,
+            WACC: 0
+        },
+        otros: {
+            DIAS_DEL_PERIODO: 0,
+            UNID_MED: 0
+        },
+        // Yearly parameters
+        margenesFinancieros: {
+            MG_BR: {} as { [year: string]: number },
+            G_V_V: {} as { [year: string]: number },
+            G_A_V: {} as { [year: string]: number },
+            IMPTO: {} as { [year: string]: number }
+        },
+        balanceGeneral: {
+            CAJA: {} as { [year: string]: number },
+            CXC: {} as { [year: string]: number },
+            EXIST: {} as { [year: string]: number },
+            CXP: {} as { [year: string]: number }
         }
     });
 
@@ -89,14 +139,20 @@ export default function App() {
     // Projection formulas state
     const [projectionFormulas, setProjectionFormulas] = useState<{ [formulaType: string]: string }>({});
 
-    // Function to load data for a specific card - SIMPLIFIED: single data source
+    // Function to load data for a specific card - NOW WITH BUDGET DATA
     const loadCardData = useCallback(async (cardId: string, title: string) => {
         setLoadingCards(prev => ({ ...prev, [cardId]: true }));
 
         try {
-            // Fetch data from the view-based API endpoint
-            const cardData = await fetchCardData(title, 2022, 2029);
+            // Fetch both real data and budget data in parallel
+            const [cardData, cardBudgetData] = await Promise.all([
+                fetchCardData(title, 2022, 2029),
+                fetchBudgetData(title, 2024, 2029) // Budget data only for 2024+
+            ]);
+
+            // Store raw data separately
             setCardsData(prev => ({ ...prev, [cardId]: cardData }));
+            setBudgetData(prev => ({ ...prev, [cardId]: cardBudgetData }));
         } catch (error) {
             console.error(`Failed to fetch data for card ${cardId}:`, error);
             // Set fallback data
@@ -108,6 +164,7 @@ export default function App() {
             };
 
             setCardsData(prev => ({ ...prev, [cardId]: fallbackData }));
+            setBudgetData(prev => ({ ...prev, [cardId]: fallbackData }));
         } finally {
             setLoadingCards(prev => ({ ...prev, [cardId]: false }));
         }
@@ -118,62 +175,127 @@ export default function App() {
         try {
             setIsLoadingGlobalParametros(true);
 
-            // Fetch both PROY_UTIL and PROY_INVERSION parameters in parallel
-            const [utilidadResponse, inversionesResponse] = await Promise.all([
-                fetch('/api/parametros?prmt_codigo=PROY_UTIL'),
-                fetch('/api/parametros?prmt_codigo=PROY_INVERSION')
-            ]);
+            // Fetch ALL parameters from database
+            const response = await fetch('/api/parametros');
 
-            // Process PROY_UTIL parameters
-            if (utilidadResponse.ok) {
-                const utilidadResult = await utilidadResponse.json();
-                if (utilidadResult.success && utilidadResult.data && utilidadResult.data.parametros) {
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.data && result.data.parametros) {
+                    const allParams = result.data.parametros;
+
+                    // Initialize parameter collections
                     const proyeccionesUtilidad: { [year: string]: number } = {};
+                    const proyeccionesInversiones: { [year: string]: number } = {};
+                    const tasasFinancieras: any = {};
+                    const estacionalidadMensual: any = {};
+                    const valorizacion: any = {};
+                    const otros: any = {};
 
-                    utilidadResult.data.parametros.forEach((param: any) => {
-                        if (param.prmt_ano) {
-                            proyeccionesUtilidad[param.prmt_ano.toString()] = param.prmt_valor;
+                    // Initialize yearly parameter collections
+                    const margenesFinancieros: any = {
+                        MG_BR: {},
+                        G_V_V: {},
+                        G_A_V: {},
+                        IMPTO: {}
+                    };
+                    const balanceGeneral: any = {
+                        CAJA: {},
+                        CXC: {},
+                        EXIST: {},
+                        CXP: {}
+                    };
+
+                    // Group parameters by type
+                    allParams.forEach((param: any) => {
+                        const { prmt_codigo, prmt_valor, prmt_ano } = param;
+
+                        // Handle yearly projection parameters
+                        if (prmt_codigo === 'PROY_UTIL' && prmt_ano) {
+                            proyeccionesUtilidad[prmt_ano.toString()] = prmt_valor;
+                        } else if (prmt_codigo === 'PROY_INVERSION' && prmt_ano) {
+                            proyeccionesInversiones[prmt_ano.toString()] = prmt_valor;
+                        }
+                        // Handle yearly margin parameters (40000s)
+                        else if (['MG_BR', 'G_V_V', 'G_A_V', 'IMPTO'].includes(prmt_codigo) && prmt_ano) {
+                            margenesFinancieros[prmt_codigo][prmt_ano.toString()] = prmt_valor;
+                        }
+                        // Handle yearly balance parameters (50000s)
+                        else if (['CAJA', 'CXC', 'EXIST', 'CXP'].includes(prmt_codigo) && prmt_ano) {
+                            balanceGeneral[prmt_codigo][prmt_ano.toString()] = prmt_valor;
+                        }
+                        // Handle non-yearly parameters (prmt_ano is NULL)
+                        else if (!prmt_ano) {
+                            // Financial rates (30000s)
+                            if (['TASA_CP', 'TASA_LP', 'SPREAD', 'BETA', 'CREC_RESIDUAL', 'RIESGO_PAIS', 'SPREAD_2', 'RF'].includes(prmt_codigo)) {
+                                tasasFinancieras[prmt_codigo] = prmt_valor;
+                            }
+                            // Monthly seasonality (70000s)
+                            else if (['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEPT', 'OCT', 'NOV', 'DIC'].includes(prmt_codigo)) {
+                                estacionalidadMensual[prmt_codigo] = prmt_valor;
+                            }
+                            // Valuation parameters
+                            else if (['RD', 'RE', 'WACC'].includes(prmt_codigo)) {
+                                valorizacion[prmt_codigo] = prmt_valor;
+                            }
+                            // Other parameters
+                            else if (['DIAS_DEL_PERIODO', 'UNID_MED'].includes(prmt_codigo)) {
+                                otros[prmt_codigo] = prmt_valor;
+                            }
                         }
                     });
 
+                    // Update global parameters state
                     setGlobalParameters(prev => ({
                         ...prev,
                         utilidad: {
                             ...prev.utilidad,
                             proyecciones: proyeccionesUtilidad
-                        }
-                    }));
-                } else {
-                    console.warn('PROY_UTIL API returned unsuccessful response:', utilidadResult);
-                }
-            } else {
-                console.warn(`PROY_UTIL API request failed with status ${utilidadResponse.status}: ${utilidadResponse.statusText}`);
-            }
-
-            // Process PROY_INVERSION parameters
-            if (inversionesResponse.ok) {
-                const inversionesResult = await inversionesResponse.json();
-                if (inversionesResult.success && inversionesResult.data && inversionesResult.data.parametros) {
-                    const proyeccionesInversiones: { [year: string]: number } = {};
-
-                    inversionesResult.data.parametros.forEach((param: any) => {
-                        if (param.prmt_ano) {
-                            proyeccionesInversiones[param.prmt_ano.toString()] = param.prmt_valor;
-                        }
-                    });
-
-                    setGlobalParameters(prev => ({
-                        ...prev,
+                        },
                         inversiones: {
                             ...prev.inversiones,
                             proyecciones: proyeccionesInversiones
+                        },
+                        tasasFinancieras: {
+                            ...prev.tasasFinancieras,
+                            ...tasasFinancieras
+                        },
+                        estacionalidadMensual: {
+                            ...prev.estacionalidadMensual,
+                            ...estacionalidadMensual
+                        },
+                        valorizacion: {
+                            ...prev.valorizacion,
+                            ...valorizacion
+                        },
+                        otros: {
+                            ...prev.otros,
+                            ...otros
+                        },
+                        margenesFinancieros: {
+                            ...prev.margenesFinancieros,
+                            ...margenesFinancieros
+                        },
+                        balanceGeneral: {
+                            ...prev.balanceGeneral,
+                            ...balanceGeneral
                         }
                     }));
+
+                    console.log('Loaded global parameters:', {
+                        utilidad: proyeccionesUtilidad,
+                        inversiones: proyeccionesInversiones,
+                        tasasFinancieras,
+                        estacionalidadMensual,
+                        valorizacion,
+                        otros,
+                        margenesFinancieros,
+                        balanceGeneral
+                    });
                 } else {
-                    console.warn('PROY_INVERSION API returned unsuccessful response:', inversionesResult);
+                    console.warn('Parameters API returned unsuccessful response:', result);
                 }
             } else {
-                console.warn(`PROY_INVERSION API request failed with status ${inversionesResponse.status}: ${inversionesResponse.statusText}`);
+                console.warn(`Parameters API request failed with status ${response.status}: ${response.statusText}`);
             }
         } catch (error) {
             console.warn('Failed to fetch global parametros data (DB may be offline):', error);
@@ -221,7 +343,7 @@ export default function App() {
         // Reload global parameters
         await fetchGlobalParametros();
 
-        // Reload all card data
+        // Reload all card data (including budget data)
         Object.entries(SECTION_CARD_TITLES).forEach(([sectionKey, titles]) => {
             titles.forEach((title, index) => {
                 const cardId = `${sectionKey}-${index}`;
@@ -353,7 +475,7 @@ export default function App() {
                     return null; // Filter out cards not in selected categories
                 }
 
-                // Process the data into FinancialCard format - SIMPLIFIED: single data source
+                // Process the data into FinancialCard format - WITH BUDGET DATA
                 // Ensure we have proper fallback data with all years
                 const defaultData = {
                     dates: ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'],
@@ -361,9 +483,10 @@ export default function App() {
                     result: -1
                 };
 
+                const rawBudgetData = budgetData[cardId];
                 const processedData = processCardData(
                     rawData || defaultData,
-                    null, // No longer using separate proyecciones data
+                    rawBudgetData || null, // Use budget data if available
                     cardId,
                     title
                 );

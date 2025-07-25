@@ -96,53 +96,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
     crecimientosVenta: false,
     inversiones: false,
     vidaUtilActivos: false,
-    estacionalidad: false,
     factoresFinancieros: false,
     operacionales: false,
     tasasFinancieras: false,
     margenesFinancieros: false,
     balanceGeneral: false,
     categoriaGastos: false,
-    estacionalidadMensual: false
+    estacionalidadMensual: false,
+    valorizacion: false,
+    otros: false
   });
 
-  // Simplified local parameters - only for parameter inputs
-  const [parameters, setParameters] = useState({
-    crecimientosVenta: {
-      proyeccion: 10
-    },
-    inversiones: {
-      proyeccion: 10
-    },
-    vidaUtilActivos: {
-      valor: "10 años"
-    },
-    // Non-yearly parameters (single values)
-    tasasFinancieras: {
-      TASA_CP: 0.06,
-      TASA_LP: 0.06,
-      SPREAD: 0.01,
-      BETA: 0.012,
-      CREC_RESIDUAL: 0.03,
-      RIESGO_PAIS: 0.06,
-      SPREAD_2: 0.01,
-      RF: 0.06
-    },
-    estacionalidadMensual: {
-      ENE: 0.1,
-      FEB: 0.1,
-      MAR: 0.1,
-      ABR: 0.1,
-      MAY: 0.1,
-      JUN: 0.1,
-      JUL: 0.1,
-      AGO: 0.1,
-      SEPT: 0.1,
-      OCT: 0.1,
-      NOV: 0.1,
-      DIC: 0.1
-    }
-  });
+  // Note: All parameters are now loaded from globalParameters prop (from database)
+  // Local parameter state is no longer needed as everything comes from the API
 
   // COMPUTED: Get projection fields based on selected years
   const getProjectionFields = useMemo(() => {
@@ -238,31 +204,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
 
     // NEW: Handle non-yearly parameters (format: "paramCode")
-    if (section === 'tasasFinancieras' || section === 'estacionalidadMensual') {
+    if (section === 'tasasFinancieras' || section === 'estacionalidadMensual' || section === 'otros') {
       const paramCode = parameter;
 
       const success = await updateParameterInDB(paramCode, null, numValue);
       if (success) {
         console.log(`${paramCode} parameter updated successfully, triggering data reload...`);
 
-        // Update local state
-        if (section === 'tasasFinancieras') {
-          setParameters(prev => ({
-            ...prev,
-            tasasFinancieras: {
-              ...prev.tasasFinancieras,
-              [paramCode]: numValue
-            }
-          }));
-        } else if (section === 'estacionalidadMensual') {
-          setParameters(prev => ({
-            ...prev,
-            estacionalidadMensual: {
-              ...prev.estacionalidadMensual,
-              [paramCode]: numValue
-            }
-          }));
-        }
+        // Note: Local state update is no longer needed as globalParameters will be refreshed via onDataReload
 
         if (onDataReload) {
           onDataReload();
@@ -272,25 +221,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }
     }
 
-    // Handle other parameter types (local state only)
-    if (section === 'crecimientosVenta') {
-      setParameters(prev => ({
-        ...prev,
-        [section]: {
-          ...prev[section],
-          proyeccion: numValue
-        }
-      }));
-    }
-
-    if (section === 'vidaUtilActivos') {
-      setParameters(prev => ({
-        ...prev,
-        vidaUtilActivos: {
-          valor: value
-        }
-      }));
-    }
+    // Note: crecimientosVenta and vidaUtilActivos parameter handling could be added here if needed
+    // Currently these sections don't persist to database but could be extended
 
     // Also notify parent component for main page updates
     onParameterChange(section, parameter, value);
@@ -413,7 +345,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           Proyección {index + 1}:
                         </span>
                         <EditableField
-                          value={parameters.crecimientosVenta.proyeccion}
+                          value={globalParameters?.crecimientosVenta?.proyeccion || 10}
                           onChange={(value) => handleParameterChange('crecimientosVenta', `proyeccion${index + 1}`, value)}
                           type="percentage"
                           isDarkMode={isDarkMode}
@@ -532,52 +464,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       VIDA ÚTIL ACTIVOS
                     </span>
                     <EditableField
-                      value={parameters.vidaUtilActivos.valor}
+                      value={globalParameters?.vidaUtilActivos?.valor || "10 años"}
                       onChange={(value) => handleParameterChange('vidaUtilActivos', 'valor', value)}
                       type="text"
                       placeholder="Ej: 10 años"
                       isDarkMode={isDarkMode}
                     />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Sección ESTACIONALIDAD DE VENTAS */}
-            <div className="space-y-3">
-              <button
-                onClick={() => toggleSection('estacionalidad')}
-                className={`w-full text-white rounded-lg p-4 flex items-center justify-between transition-colors ${isDarkMode
-                  ? 'bg-green-700 hover:bg-green-600'
-                  : 'bg-green-900 hover:bg-green-800'
-                  }`}
-              >
-                <span className="font-semibold text-base">ESTACIONALIDAD DE VENTAS</span>
-                <div className={`transform transition-transform duration-200 ${sectionStates.estacionalidad ? 'rotate-90' : ''}`}>
-                  <svg className="size-5" fill="none" viewBox="0 0 18 18">
-                    <path d={svgPaths.p3fb14600} fill="#FAFAFA" />
-                  </svg>
-                </div>
-              </button>
-
-              {sectionStates.estacionalidad && (
-                <div className={`rounded-xl border shadow-sm p-5 space-y-4 ${isDarkMode
-                  ? 'bg-neutral-800 border-[#9e9e9e]'
-                  : 'bg-white border-[#e0e0e0]'
-                  }`}>
-                  <div className={`text-center text-sm ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
-                    }`}>
-                    Configuración de estacionalidad para {selectedYears.length} año{selectedYears.length !== 1 ? 's' : ''}
-                  </div>
-
-                  {/* Botón de configuración */}
-                  <div className="flex justify-center">
-                    <button className={`px-6 py-3 rounded-lg text-sm font-medium transition-colors ${isDarkMode
-                      ? 'bg-neutral-700 text-[#3ABE76] border border-[#3ABE76] hover:bg-neutral-600'
-                      : 'bg-green-50 text-[#1a6e31] border border-green-200 hover:bg-green-100'
-                      }`}>
-                      Configurar estacionalidad
-                    </button>
                   </div>
                 </div>
               )}
@@ -626,12 +518,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
                           {label}:
                         </span>
-                        <EditableField
-                          value={parameters.tasasFinancieras[code as keyof typeof parameters.tasasFinancieras]}
-                          onChange={(value) => handleParameterChange('tasasFinancieras', code, value)}
-                          type="number"
-                          isDarkMode={isDarkMode}
-                        />
+                        {isLoadingGlobalParametros ? (
+                          <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
+                        ) : (
+                          <EditableField
+                            value={globalParameters?.tasasFinancieras?.[code as keyof typeof globalParameters.tasasFinancieras] || 0}
+                            onChange={(value) => handleParameterChange('tasasFinancieras', code, value)}
+                            type="number"
+                            isDarkMode={isDarkMode}
+                          />
+                        )}
                       </div>
                     ))}
                   </div>
@@ -696,12 +592,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           </div>
                           {getProjectionFields.map(year => (
                             <div key={`${code}-${year}`} className="flex justify-center">
-                              <EditableField
-                                value={0.1} // Default value, should be replaced with actual data
-                                onChange={(value) => handleParameterChange('margenesFinancieros', `${code}_proy${year}`, value)}
-                                type="number"
-                                isDarkMode={isDarkMode}
-                              />
+                              {isLoadingGlobalParametros ? (
+                                <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
+                              ) : (
+                                <EditableField
+                                  value={globalParameters?.margenesFinancieros?.[code as keyof typeof globalParameters.margenesFinancieros]?.[year] || 0}
+                                  onChange={(value) => handleParameterChange('margenesFinancieros', `${code}_proy${year}`, value)}
+                                  type="number"
+                                  isDarkMode={isDarkMode}
+                                />
+                              )}
                             </div>
                           ))}
                         </div>
@@ -769,12 +669,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           </div>
                           {getProjectionFields.map(year => (
                             <div key={`${code}-${year}`} className="flex justify-center">
-                              <EditableField
-                                value={0.1} // Default value, should be replaced with actual data
-                                onChange={(value) => handleParameterChange('balanceGeneral', `${code}_proy${year}`, value)}
-                                type="number"
-                                isDarkMode={isDarkMode}
-                              />
+                              {isLoadingGlobalParametros ? (
+                                <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
+                              ) : (
+                                <EditableField
+                                  value={globalParameters?.balanceGeneral?.[code as keyof typeof globalParameters.balanceGeneral]?.[year] || 0}
+                                  onChange={(value) => handleParameterChange('balanceGeneral', `${code}_proy${year}`, value)}
+                                  type="number"
+                                  isDarkMode={isDarkMode}
+                                />
+                              )}
                             </div>
                           ))}
                         </div>
@@ -833,12 +737,127 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <span className={`text-xs font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
                           {label}:
                         </span>
-                        <EditableField
-                          value={parameters.estacionalidadMensual[code as keyof typeof parameters.estacionalidadMensual]}
-                          onChange={(value) => handleParameterChange('estacionalidadMensual', code, value)}
-                          type="number"
-                          isDarkMode={isDarkMode}
-                        />
+                        {isLoadingGlobalParametros ? (
+                          <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
+                        ) : (
+                          <EditableField
+                            value={globalParameters?.estacionalidadMensual?.[code as keyof typeof globalParameters.estacionalidadMensual] || 0}
+                            onChange={(value) => handleParameterChange('estacionalidadMensual', code, value)}
+                            type="number"
+                            isDarkMode={isDarkMode}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Sección VALORIZACIÓN */}
+            <div className="space-y-3">
+              <button
+                onClick={() => toggleSection('valorizacion')}
+                className={`w-full text-white rounded-lg p-4 flex items-center justify-between transition-colors ${isDarkMode
+                  ? 'bg-green-700 hover:bg-green-600'
+                  : 'bg-green-900 hover:bg-green-800'
+                  }`}
+              >
+                <span className="font-semibold text-base">VALORIZACIÓN</span>
+                <div className={`transform transition-transform duration-200 ${sectionStates.valorizacion ? 'rotate-90' : ''}`}>
+                  <svg className="size-5" fill="none" viewBox="0 0 18 18">
+                    <path d={svgPaths.p3fb14600} fill="#FAFAFA" />
+                  </svg>
+                </div>
+              </button>
+
+              {sectionStates.valorizacion && (
+                <div className={`rounded-xl border shadow-sm p-5 space-y-4 ${isDarkMode
+                  ? 'bg-neutral-800 border-[#9e9e9e]'
+                  : 'bg-white border-[#e0e0e0]'
+                  }`}>
+
+                  <div className="text-center">
+                    <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                      Parámetros de valorización
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {[
+                      { code: 'RD', label: 'Costo de la Deuda (RD)' },
+                      { code: 'RE', label: 'Costo del Patrimonio (RE)' },
+                      { code: 'WACC', label: 'Costo Promedio Ponderado de Capital (WACC)' }
+                    ].map(({ code, label }) => (
+                      <div key={code} className="flex items-center justify-between">
+                        <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                          {label}:
+                        </span>
+                        {isLoadingGlobalParametros ? (
+                          <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
+                        ) : (
+                          <EditableField
+                            value={globalParameters?.valorizacion?.[code as keyof typeof globalParameters.valorizacion] || 0}
+                            onChange={(value) => handleParameterChange('valorizacion', code, value)}
+                            type="percentage"
+                            isDarkMode={isDarkMode}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Sección OTROS */}
+            <div className="space-y-3">
+              <button
+                onClick={() => toggleSection('otros')}
+                className={`w-full text-white rounded-lg p-4 flex items-center justify-between transition-colors ${isDarkMode
+                  ? 'bg-green-700 hover:bg-green-600'
+                  : 'bg-green-900 hover:bg-green-800'
+                  }`}
+              >
+                <span className="font-semibold text-base">OTROS</span>
+                <div className={`transform transition-transform duration-200 ${sectionStates.otros ? 'rotate-90' : ''}`}>
+                  <svg className="size-5" fill="none" viewBox="0 0 18 18">
+                    <path d={svgPaths.p3fb14600} fill="#FAFAFA" />
+                  </svg>
+                </div>
+              </button>
+
+              {sectionStates.otros && (
+                <div className={`rounded-xl border shadow-sm p-5 space-y-4 ${isDarkMode
+                  ? 'bg-neutral-800 border-[#9e9e9e]'
+                  : 'bg-white border-[#e0e0e0]'
+                  }`}>
+
+                  <div className="text-center">
+                    <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                      Otros parámetros del sistema
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {[
+                      { code: 'DIAS_DEL_PERIODO', label: 'Días del Período' },
+                      { code: 'UNID_MED', label: 'Unidad de Medida' }
+                    ].map(({ code, label }) => (
+                      <div key={code} className="flex items-center justify-between">
+                        <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                          {label}:
+                        </span>
+                        {isLoadingGlobalParametros ? (
+                          <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
+                        ) : (
+                          <EditableField
+                            value={globalParameters?.otros?.[code as keyof typeof globalParameters.otros] || 0}
+                            onChange={(value) => handleParameterChange('otros', code, value)}
+                            type="number"
+                            isDarkMode={isDarkMode}
+                          />
+                        )}
                       </div>
                     ))}
                   </div>

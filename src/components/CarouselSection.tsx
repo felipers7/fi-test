@@ -209,12 +209,12 @@ export const CarouselSection: React.FC<CarouselSectionProps> = ({
           <div className="relative">
             {/* Navigation Arrows - Only show if more than cardsPerPage */}
             {cards.length > cardsPerPage && (
-              <>
+              <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-between">
                 {/* Left Arrow */}
                 <button
                   onClick={handlePrevious}
                   disabled={!canGoLeft}
-                  className={`absolute left-0 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 carousel-nav-button ${
+                  className={`pointer-events-auto w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 carousel-nav-button ${
                     canGoLeft 
                       ? 'hover:scale-105 cursor-pointer' 
                       : 'opacity-30 cursor-not-allowed'
@@ -235,7 +235,7 @@ export const CarouselSection: React.FC<CarouselSectionProps> = ({
                 <button
                   onClick={handleNext}
                   disabled={!canGoRight}
-                  className={`absolute right-0 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 carousel-nav-button ${
+                  className={`pointer-events-auto w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 carousel-nav-button ${
                     canGoRight 
                       ? 'hover:scale-105 cursor-pointer' 
                       : 'opacity-30 cursor-not-allowed'
@@ -251,7 +251,7 @@ export const CarouselSection: React.FC<CarouselSectionProps> = ({
                     style={{ color: isDarkMode ? '#ffffff' : '#404040' }}
                   />
                 </button>
-              </>
+              </div>
             )}
 
             {/* Cards Container - WITH DRAG AND DROP */}

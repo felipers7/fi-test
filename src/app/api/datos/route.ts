@@ -23,6 +23,7 @@ const CARD_TO_VIEW_MAPPING: { [key: string]: string } = {
     'valor_deuda': 'vw_valor_deuda',
     'crecimiento_patrimonio': 'vw_crecimiento_patrimonio',
     'creacion_de_valor': 'vw_creacion_de_valor',
+    'ventas': 'vw_ventas',
 
     // Rentabilidad del patrimonio
     'rentabilidad_patrimonio': 'vw_rentabilidad_de_patrimonio',

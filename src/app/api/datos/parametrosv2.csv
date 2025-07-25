@@ -1,0 +1,133 @@
+prmt_id,prmt_codigo,prmt_desc,prmt_valor,prmt_ano
+10000,DIAS_DEL_PERIODO,"días del periodo",365.000,NULL
+10001,EV_ABR,"estacionalidad ventas",0.100,NULL
+10002,UNID_MED,"unidad medida",1000.000,NULL
+10003,PROY_UTIL,"proyeccion utilidad",0.800,2025
+10004,PROY_UTIL,"proyeccion utilidad",0.850,2026
+10005,PROY_UTIL,"proyeccion utilidad",0.900,2027
+10006,PROY_UTIL,"proyeccion utilidad",0.950,2029
+10007,PROY_INVERSION,"proyeccion inversion",5.000,2022
+10008,PROY_INVERSION,"proyeccion inversion",5.000,2023
+10009,PROY_INVERSION,"proyeccion inversion",5.000,2024
+10010,PROY_INVERSION,"proyeccion inversion",5000.000,2025
+10011,PROY_INVERSION,"proyeccion inversion",6000.000,2026
+10012,PROY_INVERSION,"proyeccion inversion",6000.000,2027
+10013,PROY_INVERSION,"proyeccion inversion",5000.000,2028
+10014,PROY_INVERSION,"proyeccion inversion",5000.000,2029
+10015,RD,"rd ",7.200,NULL
+10016,RE,"r estacionalidad",13.200,NULL
+10017,WACC,wacc,11.600,NULL
+20001,GRL,,11.600,2023
+20003,MANT,,11.600,2023
+20004,HON,,11.600,2023
+30001,"TASA CP",,0.058,NULL
+30002,"TASA LP",,0.060,NULL
+30003,SPREAD,,0.012,NULL
+30004,BETA,,0.012,NULL
+30005,CREC_RESIDUAL,,0.030,NULL
+30006,RIESGO_PAIS,,0.060,NULL
+30007,SPREAD_2,,0.010,NULL
+30008,RF,,0.060,NULL
+40001,MG_BR,"Margen Bruto",0.100,2023
+40002,MG_BR,"Margen Bruto",0.100,2024
+40003,MG_BR,"Margen Bruto",0.180,2025
+40004,MG_BR,"Margen Bruto",0.190,2026
+40005,MG_BR,"Margen Bruto",0.190,2027
+40006,G_V_V,"Gastos de Venta y Variables",0.100,2023
+40007,G_V_V,"Gastos de Venta y Variables",0.100,2024
+40008,G_V_V,"Gastos de Venta y Variables",0.000,2025
+40009,G_V_V,"Gastos de Venta y Variables",0.000,2026
+40010,G_V_V,"Gastos de Venta y Variables",0.000,2027
+40011,G_A_V,"Gastos de Administracion y Ventas",0.100,2023
+40012,G_A_V,"Gastos de Administracion y Ventas",0.100,2024
+40013,G_A_V,"Gastos de Administracion y Ventas",0.025,2025
+40014,G_A_V,"Gastos de Administracion y Ventas",0.025,2026
+40015,G_A_V,"Gastos de Administracion y Ventas",0.025,2027
+40016,IMPTO,Impuesto,0.100,2023
+40017,IMPTO,Impuesto,0.100,2024
+40018,IMPTO,Impuesto,0.270,2025
+40019,IMPTO,Impuesto,0.270,2026
+40020,IMPTO,Impuesto,0.270,2027
+50001,CAJA,Caja,0.100,2023
+50002,CAJA,Caja,0.100,2024
+50003,CAJA,Caja,10.000,2025
+50004,CAJA,Caja,10.000,2026
+50005,CAJA,Caja,10.000,2027
+50006,CXC,"Cuentas por Cobrar",0.100,2023
+50007,CXC,"Cuentas por Cobrar",0.100,2024
+50008,CXC,"Cuentas por Cobrar",110.000,2025
+50009,CXC,"Cuentas por Cobrar",110.000,2026
+50010,CXC,"Cuentas por Cobrar",110.000,2027
+50011,EXIST,Existencias,0.100,2023
+50012,EXIST,Existencias,0.100,2024
+50013,EXIST,Existencias,0.000,2025
+50014,EXIST,Existencias,0.000,2026
+50015,EXIST,Existencias,0.000,2027
+50016,CXP,"Cuentas por Pagar",0.100,2023
+50017,CXP,"Cuentas por Pagar",0.100,2024
+50018,CXP,"Cuentas por Pagar",40.000,2025
+50019,CXP,"Cuentas por Pagar",40.000,2026
+50020,CXP,"Cuentas por Pagar",40.000,2027
+60001,REM,Remuneraciones,0.100,2023
+60002,REM,Remuneraciones,0.100,2024
+60003,REM,Remuneraciones,0.100,2025
+60004,REM,Remuneraciones,0.100,2026
+60005,REM,Remuneraciones,0.100,2027
+60006,GPER,"Gastos de Personal",0.100,2023
+60007,GPER,"Gastos de Personal",0.100,2024
+60008,GPER,"Gastos de Personal",0.100,2025
+60009,GPER,"Gastos de Personal",0.100,2026
+60010,GPER,"Gastos de Personal",0.100,2027
+60011,SERV,Servicios,0.100,2023
+60012,SERV,Servicios,0.100,2024
+60013,SERV,Servicios,0.100,2025
+60014,SERV,Servicios,0.100,2026
+60015,SERV,Servicios,0.100,2027
+60016,MAT,Materiales,0.100,2023
+60017,MAT,Materiales,0.100,2024
+60018,MAT,Materiales,0.100,2025
+60019,MAT,Materiales,0.100,2026
+60020,MAT,Materiales,0.100,2027
+60021,ARR,Arriendos,0.100,2023
+60022,ARR,Arriendos,0.100,2024
+60023,ARR,Arriendos,0.100,2025
+60024,ARR,Arriendos,0.100,2026
+60025,ARR,Arriendos,0.100,2027
+60026,DEP,Depreciacion,0.100,2023
+60027,DEP,Depreciacion,0.100,2024
+60028,DEP,Depreciacion,0.100,2025
+60029,DEP,Depreciacion,0.100,2026
+60030,DEP,Depreciacion,0.100,2027
+60031,HERR,Herramientas,0.100,2023
+60032,HERR,Herramientas,0.100,2024
+60033,HERR,Herramientas,0.100,2025
+60034,HERR,Herramientas,0.100,2026
+60035,HERR,Herramientas,0.100,2027
+60036,OTR,Otros,0.100,2023
+60037,OTR,Otros,0.100,2024
+60038,OTR,Otros,0.100,2025
+60039,OTR,Otros,0.100,2026
+60040,OTR,Otros,0.100,2027
+70001,ENE,Enero,0.100,NULL
+70002,FEB,Febrero,0.100,NULL
+70003,MAR,Marzo,0.100,NULL
+70004,ABR,Abril,0.100,NULL
+70005,MAY,Mayo,0.100,NULL
+70006,JUN,Junio,0.100,NULL
+70007,JUL,Julio,0.100,NULL
+70008,AGO,Agosto,0.100,NULL
+70009,SEPT,Septiembre,0.100,NULL
+70010,OCT,Octubre,0.100,NULL
+70011,NOV,Noviembre,0.100,NULL
+70012,DIC,Diciembre,0.100,NULL
+80001,PROY_CRECIMIENTO,"proyeccion crecimiento de ventas",0.150,2025
+80002,PROY_CRECIMIENTO,"proyeccion crecimiento de ventas",0.200,2026
+80003,PROY_CRECIMIENTO,"proyeccion crecimiento de ventas",0.050,2027
+80004,PROY_CREDITO_NETO,"proyeccion credito neto",4000.000,2025
+80005,PROY_CREDITO_NETO,"proyeccion credito neto",3500.000,2026
+80006,PROY_CREDITO_NETO,"proyeccion credito neto",4000.000,2027
+80007,PROY_DIVIDENDOS,"proyeccion dividendos",5100.000,2025
+80008,PROY_DIVIDENDOS,"proyeccion dividendos",5300.000,2026
+80009,PROY_DIVIDENDOS,"proyeccion dividendos",6000.000,2027
+90001,VRA,"vida residual activos",0.400,NULL
+90002,VUC,"vida util activos",20.000,NULL

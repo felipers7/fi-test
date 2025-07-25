@@ -57,8 +57,12 @@ async function executeFinancialProjectionCalculation(): Promise<void> {
     try {
         console.log('Executing financial projection calculation...');
 
+        // Get current year
+        const currentYear = new Date().getFullYear();
+        console.log('Using current year for projection:', currentYear);
+
         // Execute the stored procedure
-        await connection.execute('CALL calcular_proyeccion_financiera_modelo()');
+        await connection.execute('CALL calcular_proyeccion_financiera_modelo(?)', [currentYear]);
 
         console.log('Financial projection calculation completed successfully');
         await connection.end();
@@ -189,8 +193,8 @@ export async function PUT(request: Request) {
 
         console.log('Updating parameter:', { prmt_codigo, prmt_ano, prmt_valor });
 
-        // Update parameter in database
-        await updateParametros(prmt_codigo, prmt_ano, prmt_valor);
+        // Update parameter in database (convert undefined to null for MySQL)
+        await updateParametros(prmt_codigo, prmt_ano ?? null, prmt_valor);
 
         // Execute financial projection calculation after parameter update
         await executeFinancialProjectionCalculation();

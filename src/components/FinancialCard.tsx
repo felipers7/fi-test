@@ -67,7 +67,8 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
                   </div>
                 </div>
 
-                {/* Selector de años - ADAPTABLE */}
+                {/* Selector de años - ADAPTABLE - COMMENTED OUT VISUALLY */}
+                {/* 
                 <div className="financial-card-select h-10 min-w-[100px] relative rounded-lg shrink-0">
                   <div className="absolute financial-card-select-border border border-solid inset-[-0.5px] pointer-events-none rounded-[8.5px]" />
                   <div className="flex flex-row items-center min-w-inherit relative size-full">
@@ -78,7 +79,6 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
                         </p>
                       </div>
 
-                      {/* Chevron Down */}
                       <div className="relative shrink-0 size-4">
                         <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 16 16">
                           <g>
@@ -95,6 +95,7 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
                     </div>
                   </div>
                 </div>
+                */}
 
                 {/* Drag Gripper - ADAPTABLE CON TOOLTIP */}
                 <div

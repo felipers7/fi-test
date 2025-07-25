@@ -83,21 +83,93 @@ export const fetchCardData = async (title: string, startYear: number = 2022, end
     }
 };
 
-// REMOVED: fetchProyeccionesData - no longer needed as both real and projected data come from same view
-// The separation will be handled in processCardData based on year logic
+// NEW: Service to fetch budget data from the presupuesto API
+export const fetchBudgetData = async (title: string, startYear: number = 2024, endYear: number = 2029): Promise<CardDataInterface> => {
+    try {
+        const formulaName = titleToFormulaName(title);
+        console.log(`Fetching budget data for card "${title}" using formula "${formulaName}"`);
 
-// UPDATED: Function to process raw API data into FinancialCard format with year-based logic
-// Now uses the same data source for both real and projected values, separated by year
+        const response = await fetch(`/api/presupuesto?startYear=${startYear}&endYear=${endYear}&formula=${formulaName}`, {
+            method: 'GET',
+            cache: 'no-store'
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.data) {
+                return {
+                    dates: result.data.dates || [],
+                    values: result.data.values || [],
+                    result: result.data.result || 0,
+                    warning: result.data.warning || null
+                };
+            }
+        }
+
+        // Return fallback data with 0 values on error (budget data should default to 0)
+        const years = [];
+        const fallbackValues = [];
+        for (let year = startYear; year <= endYear; year++) {
+            years.push(year.toString());
+            fallbackValues.push(0);
+        }
+
+        return {
+            dates: years,
+            values: fallbackValues,
+            result: 0,
+            warning: `Failed to fetch budget data for ${title}`
+        };
+    } catch (error) {
+        console.error(`Error fetching budget data for ${title}:`, error);
+
+        // Return fallback data with 0 values on error
+        const years = [];
+        const fallbackValues = [];
+        for (let year = startYear; year <= endYear; year++) {
+            years.push(year.toString());
+            fallbackValues.push(0);
+        }
+
+        return {
+            dates: years,
+            values: fallbackValues,
+            result: 0,
+            warning: `Error fetching budget data for ${title}`
+        };
+    }
+};
+
+// UPDATED: Function to process raw API data into FinancialCard format with budget data
+// Now includes budget data in the presupuesto row
 export const processCardData = (
     apiData: CardDataInterface,
-    proyeccionesApiData: CardDataInterface | null, // Keep for backward compatibility but not used
+    budgetData: CardDataInterface | null, // Budget data for presupuesto row
     cardId: string,
     title: string
 ): FinancialCardData => {
     const dates = apiData.dates || ['2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029'];
     const currentYear = 2024; // Data up to 2024 is "real", 2025+ is "projected"
 
-    // Process values based on year logic
+    // Process budget values for presupuesto row
+    const presupuestadoValues: (number | string)[] = [];
+    dates.forEach((dateStr, index) => {
+        const year = parseInt(dateStr);
+
+        if (budgetData && budgetData.values && budgetData.values[index] !== undefined) {
+            // Use budget data if available (only for years 2024+)
+            if (year >= 2024) {
+                presupuestadoValues.push(budgetData.values[index]);
+            } else {
+                presupuestadoValues.push('-'); // No budget for historical years
+            }
+        } else {
+            // Fallback to 0 for budget years, '-' for historical years
+            presupuestadoValues.push(year >= 2024 ? 0 : '-');
+        }
+    });
+
+    // Process real and projected values based on year logic
     const realValues: (number | string)[] = [];
     const proyectadoValues: (number | string)[] = [];
 
@@ -127,7 +199,7 @@ export const processCardData = (
         title: title,
         data: {
             dates: dates,
-            presupuestadoValues: Array(dates.length).fill(0), // Row 1 - always zeros
+            presupuestadoValues: presupuestadoValues, // Row 1 - budget data
             realValues: realValues, // Row 2 - real data for years <= 2024
             proyectadoValues: proyectadoValues, // Row 3 - projections for years >= 2025
             result: calculatedResult
@@ -157,7 +229,7 @@ export const fetchProyeccionesData = async (title: string, startYear: number = 2
 export const SECTION_CARD_TITLES = {
     crecimiento: [
         "UTILIDAD", "EBITDA", "VALOR PATRIMONIO", "INTERESES A OPERACIONAL",
-        "VALOR DEUDA", "CRECIMIENTO PATRIMONIO", "CREACION DE VALOR"
+        "VALOR DEUDA", "CRECIMIENTO PATRIMONIO", "CREACION DE VALOR", "VENTAS"
     ],
     riesgo: [
         "SOLVENCIA", "LIQUIDEZ", "NIVEL DE DEUDA", "DIVIDENDOS", "CREDITO NETO"
