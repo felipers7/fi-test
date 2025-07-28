@@ -1,6 +1,23 @@
 import React from 'react';
 import svgPaths from "../imports/svg-h9t05zbsew";
 
+// Set of titles that should be displayed as percentages
+const PERCENTAGE_TITLES = new Set([
+  'PAGO DIVIDENDOS',
+  'CAPITAL DE TRABAJO', 
+  'CAJA PERIODO',
+  'INVERSIONES',
+  'USOS DE FONDO',
+  'FUENTES DE FONDO',
+  'FLUJO OPERATIVO',
+  'CREDITO',
+  'NIVEL DE DEUDA',
+  'RENTABILIDAD PATRIMONIO',
+  'RENTABILIDAD CAPITAL',
+  'CREACION DE VALOR',
+  'CRECIMIENTO PATRIMONIO'
+]);
+
 interface FinancialData {
   dates: string[];
   result: number | string;
@@ -21,6 +38,9 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
   data,
   globalSelectedYears
 }) => {
+  // Check if this card should display values as percentages
+  const isPercentageCard = PERCENTAGE_TITLES.has(title);
+
   // Filter data based on selected years
   const filteredData = data.dates
     .map((date, index) => ({
@@ -33,8 +53,29 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
     .filter(item => globalSelectedYears.includes(item.date))
     .sort((a, b) => parseInt(a.date) - parseInt(b.date));
 
+  // Get the "real" value from 2024 column for the main result
+  const get2024RealValue = (): number | string => {
+    const year2024Index = data.dates.findIndex(date => date === '2024');
+    if (year2024Index !== -1 && data.realValues[year2024Index] !== undefined) {
+      return data.realValues[year2024Index];
+    }
+    return data.result; // Fallback to original result if 2024 not found
+  };
+
   const formatNumber = (num: number | string): string => {
     if (typeof num === 'string') return num; // Handle '-', 'cargando', etc.
+    
+    if (isPercentageCard) {
+      // For percentage cards: multiply by 100 and round to 2 decimal places
+      const percentageValue = Math.round(num * 100 * 100) / 100; // Round to 2 decimals
+      const formattedPercentage = new Intl.NumberFormat('es-ES', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(percentageValue);
+      return `${formattedPercentage}%`;
+    }
+    
+    // For regular cards: format as normal numbers
     return new Intl.NumberFormat('es-ES').format(num);
   };
 
@@ -149,7 +190,7 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
             <div className="flex flex-row items-center justify-center relative size-full">
               <div className="box-border content-stretch flex flex-row gap-2.5 h-[34.111px] items-center justify-center pb-2 pt-1 px-1 relative w-full">
                 <div className="font-['Inter:Medium',_sans-serif] font-medium leading-[0] not-italic relative shrink-0 text-[#b00020] dark:text-[#ff2e2e] text-[28px] text-left text-nowrap">
-                  <p className="block leading-[normal] whitespace-pre">{formatNumber(data.result)}</p>
+                  <p className="block leading-[normal] whitespace-pre">{formatNumber(get2024RealValue())}</p>
                 </div>
               </div>
             </div>

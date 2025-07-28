@@ -24,7 +24,15 @@ type SectionKey = 'crecimiento' | 'riesgo' | 'flujo' | 'rentabilidad' | 'inversi
 
 
 
+
+
+
+
 // Updated year ranges - 1 año now starts from 2025, matching GlobalYearSelector
+
+
+
+
 const YEAR_RANGES = [
     {
         id: 'short',
@@ -73,7 +81,15 @@ export default function App() {
         },
         crecimientosVenta: {
             values: {} as { [year: string]: number },
-            proyeccion: 10
+            proyecciones: {} as { [year: string]: number }
+        },
+        creditoNeto: {
+            values: {} as { [year: string]: number },
+            proyecciones: {} as { [year: string]: number }
+        },
+        dividendos: {
+            values: {} as { [year: string]: number },
+            proyecciones: {} as { [year: string]: number }
         },
         inversiones: {
             values: {} as { [year: string]: number },
@@ -115,7 +131,8 @@ export default function App() {
         },
         otros: {
             DIAS_DEL_PERIODO: 0,
-            UNID_MED: 0
+            UNID_MED: 0,
+            VUC: 10
         },
         // Yearly parameters
         margenesFinancieros: {
@@ -129,6 +146,16 @@ export default function App() {
             CXC: {} as { [year: string]: number },
             EXIST: {} as { [year: string]: number },
             CXP: {} as { [year: string]: number }
+        },
+        costosDeVenta: {
+            REM: {} as { [year: string]: number },
+            GPER: {} as { [year: string]: number },
+            SERV: {} as { [year: string]: number },
+            MAT: {} as { [year: string]: number },
+            ARR: {} as { [year: string]: number },
+            DEP: {} as { [year: string]: number },
+            HERR: {} as { [year: string]: number },
+            OTR: {} as { [year: string]: number }
         }
     });
 
@@ -186,6 +213,9 @@ export default function App() {
                     // Initialize parameter collections
                     const proyeccionesUtilidad: { [year: string]: number } = {};
                     const proyeccionesInversiones: { [year: string]: number } = {};
+                    const proyeccionesCrecimiento: { [year: string]: number } = {};
+                    const proyeccionesCreditoNeto: { [year: string]: number } = {};
+                    const proyeccionesDividendos: { [year: string]: number } = {};
                     const tasasFinancieras: any = {};
                     const estacionalidadMensual: any = {};
                     const valorizacion: any = {};
@@ -204,6 +234,16 @@ export default function App() {
                         EXIST: {},
                         CXP: {}
                     };
+                    const costosDeVenta: any = {
+                        REM: {},
+                        GPER: {},
+                        SERV: {},
+                        MAT: {},
+                        ARR: {},
+                        DEP: {},
+                        HERR: {},
+                        OTR: {}
+                    };
 
                     // Group parameters by type
                     allParams.forEach((param: any) => {
@@ -214,6 +254,12 @@ export default function App() {
                             proyeccionesUtilidad[prmt_ano.toString()] = prmt_valor;
                         } else if (prmt_codigo === 'PROY_INVERSION' && prmt_ano) {
                             proyeccionesInversiones[prmt_ano.toString()] = prmt_valor;
+                        } else if (prmt_codigo === 'PROY_CRECIMIENTO' && prmt_ano) {
+                            proyeccionesCrecimiento[prmt_ano.toString()] = prmt_valor;
+                        } else if (prmt_codigo === 'PROY_CREDITO_NETO' && prmt_ano) {
+                            proyeccionesCreditoNeto[prmt_ano.toString()] = prmt_valor;
+                        } else if (prmt_codigo === 'PROY_DIVIDENDOS' && prmt_ano) {
+                            proyeccionesDividendos[prmt_ano.toString()] = prmt_valor;
                         }
                         // Handle yearly margin parameters (40000s)
                         else if (['MG_BR', 'G_V_V', 'G_A_V', 'IMPTO'].includes(prmt_codigo) && prmt_ano) {
@@ -223,11 +269,17 @@ export default function App() {
                         else if (['CAJA', 'CXC', 'EXIST', 'CXP'].includes(prmt_codigo) && prmt_ano) {
                             balanceGeneral[prmt_codigo][prmt_ano.toString()] = prmt_valor;
                         }
+                        // Handle yearly costos de venta parameters (60000s)
+                        else if (['REM', 'GPER', 'SERV', 'MAT', 'ARR', 'DEP', 'HERR', 'OTR'].includes(prmt_codigo) && prmt_ano) {
+                            costosDeVenta[prmt_codigo][prmt_ano.toString()] = prmt_valor;
+                            console.log(`Loading costo de venta: ${prmt_codigo} (${prmt_ano}) = ${prmt_valor}`);
+                        }
                         // Handle non-yearly parameters (prmt_ano is NULL)
                         else if (!prmt_ano) {
                             // Financial rates (30000s)
                             if (['TASA_CP', 'TASA_LP', 'SPREAD', 'BETA', 'CREC_RESIDUAL', 'RIESGO_PAIS', 'SPREAD_2', 'RF'].includes(prmt_codigo)) {
                                 tasasFinancieras[prmt_codigo] = prmt_valor;
+                                console.log(`Loading tasa financiera: ${prmt_codigo} = ${prmt_valor}`);
                             }
                             // Monthly seasonality (70000s)
                             else if (['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEPT', 'OCT', 'NOV', 'DIC'].includes(prmt_codigo)) {
@@ -238,7 +290,7 @@ export default function App() {
                                 valorizacion[prmt_codigo] = prmt_valor;
                             }
                             // Other parameters
-                            else if (['DIAS_DEL_PERIODO', 'UNID_MED'].includes(prmt_codigo)) {
+                            else if (['DIAS_DEL_PERIODO', 'UNID_MED', 'VUC'].includes(prmt_codigo)) {
                                 otros[prmt_codigo] = prmt_valor;
                             }
                         }
@@ -254,6 +306,18 @@ export default function App() {
                         inversiones: {
                             ...prev.inversiones,
                             proyecciones: proyeccionesInversiones
+                        },
+                        crecimientosVenta: {
+                            ...prev.crecimientosVenta,
+                            proyecciones: proyeccionesCrecimiento
+                        },
+                        creditoNeto: {
+                            ...prev.creditoNeto,
+                            proyecciones: proyeccionesCreditoNeto
+                        },
+                        dividendos: {
+                            ...prev.dividendos,
+                            proyecciones: proyeccionesDividendos
                         },
                         tasasFinancieras: {
                             ...prev.tasasFinancieras,
@@ -278,6 +342,10 @@ export default function App() {
                         balanceGeneral: {
                             ...prev.balanceGeneral,
                             ...balanceGeneral
+                        },
+                        costosDeVenta: {
+                            ...prev.costosDeVenta,
+                            ...costosDeVenta
                         }
                     }));
 
@@ -289,7 +357,8 @@ export default function App() {
                         valorizacion,
                         otros,
                         margenesFinancieros,
-                        balanceGeneral
+                        balanceGeneral,
+                        costosDeVenta
                     });
                 } else {
                     console.warn('Parameters API returned unsuccessful response:', result);
