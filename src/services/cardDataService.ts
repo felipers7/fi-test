@@ -228,14 +228,14 @@ export const fetchProyeccionesData = async (title: string, startYear: number = 2
 // Card titles organized by section - UPDATED to match available database views
 export const SECTION_CARD_TITLES = {
     crecimiento: [
-        "UTILIDAD", "EBITDA", "VALOR PATRIMONIO", "INTERESES A OPERACIONAL",
+        "UTILIDAD", "EBITDA", "VALOR PATRIMONIO", "INTERESES OPERACIONALES 1", "INTERESES OPERACIONALES 2",
         "VALOR DEUDA", "CRECIMIENTO PATRIMONIO", "CREACION DE VALOR", "VENTAS"
     ],
     riesgo: [
         "SOLVENCIA", "LIQUIDEZ", "NIVEL DE DEUDA", "DIVIDENDOS", "CREDITO NETO"
     ],
     flujo: [
-        "FUENTES DE FONDO", "CAJA", "USOS DE FONDO", "FLUJO OPERATIVO",
+        "FUENTES DE FONDO", "CAJA 1", "CAJA 2", "USOS DE FONDO", "FLUJO OPERATIVO",
         "PAGO DIVIDENDOS", "FLUJO INVERSIONES", "CREDITO", "CAPITAL DE TRABAJO", "CAJA PERIODO"
     ],
     rentabilidad: [

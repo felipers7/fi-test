@@ -19,7 +19,8 @@ const CARD_TO_BUDGET_VIEW_MAPPING: { [key: string]: string } = {
     'utilidad': 'vw_utilidad_presupuesto',
     'ebitda': 'vw_EBITDA_presupuesto',
     'valor_patrimonio': 'vw_valor_patrimonio_presupuesto',
-    'intereses_a_operacional': 'vw_intereses_operacionales_presupuesto',
+    'intereses_operacionales_1': 'vw_intereses_operacionales1_presupuesto',
+    'intereses_operacionales_2': 'vw_intereses_operacionales2_presupuesto',
     'valor_deuda': 'vw_valor_deuda_presupuesto',
     'crecimiento_patrimonio': 'vw_crecimiento_patrimonio_presupuesto',
     'creacion_de_valor': 'vw_creacion_de_valor_presupuesto',
@@ -38,7 +39,8 @@ const CARD_TO_BUDGET_VIEW_MAPPING: { [key: string]: string } = {
 
     // Flujo de efectivo
     'fuentes_de_fondo': 'vw_fuentes_de_fondo_presupuesto',
-    'caja': 'vw_caja_1_presupuesto', // Using caja_1 for main caja
+    'caja_1': 'vw_caja1_presupuesto',
+    'caja_2': 'vw_caja2_presupuesto',
     'usos_de_fondo': 'vw_usos_de_fondo_presupuesto',
     'flujo_operativo': 'vw_flujo_operativo_presupuesto',
     'pago_dividendos': 'vw_pago_dividendos_presupuesto',

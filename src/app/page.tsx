@@ -157,6 +157,14 @@ export default function App() {
             DEP: {} as { [year: string]: number },
             HERR: {} as { [year: string]: number },
             OTR: {} as { [year: string]: number }
+        },
+        gastosDeVenta: {
+            REM: {} as { [year: string]: number },
+            GRL: {} as { [year: string]: number },
+            DEP: {} as { [year: string]: number },
+            MANT: {} as { [year: string]: number },
+            HON: {} as { [year: string]: number },
+            OTR: {} as { [year: string]: number }
         }
     });
 
@@ -245,6 +253,14 @@ export default function App() {
                         HERR: {},
                         OTR: {}
                     };
+                    const gastosDeVenta: any = {
+                        REM: {},
+                        GRL: {},
+                        DEP: {},
+                        MANT: {},
+                        HON: {},
+                        OTR: {}
+                    };
 
                     // Group parameters by type
                     allParams.forEach((param: any) => {
@@ -274,6 +290,11 @@ export default function App() {
                         else if (['REM', 'GPER', 'SERV', 'MAT', 'ARR', 'DEP', 'HERR', 'OTR'].includes(prmt_codigo) && prmt_ano) {
                             costosDeVenta[prmt_codigo][prmt_ano.toString()] = prmt_valor;
                             console.log(`Loading costo de venta: ${prmt_codigo} (${prmt_ano}) = ${prmt_valor}`);
+                        }
+                        // Handle yearly gastos de venta parameters (70000s)
+                        else if (['REM', 'GRL', 'DEP', 'MANT', 'HON', 'OTR'].includes(prmt_codigo) && prmt_ano) {
+                            gastosDeVenta[prmt_codigo][prmt_ano.toString()] = prmt_valor;
+                            console.log(`Loading gasto de venta: ${prmt_codigo} (${prmt_ano}) = ${prmt_valor}`);
                         }
                         // Handle non-yearly parameters (prmt_ano is NULL)
                         else if (!prmt_ano) {
@@ -347,6 +368,10 @@ export default function App() {
                         costosDeVenta: {
                             ...prev.costosDeVenta,
                             ...costosDeVenta
+                        },
+                        gastosDeVenta: {
+                            ...prev.gastosDeVenta,
+                            ...gastosDeVenta
                         }
                     }));
 
@@ -359,7 +384,8 @@ export default function App() {
                         otros,
                         margenesFinancieros,
                         balanceGeneral,
-                        costosDeVenta
+                        costosDeVenta,
+                        gastosDeVenta
                     });
                 } else {
                     console.warn('Parameters API returned unsuccessful response:', result);
@@ -598,12 +624,12 @@ export default function App() {
             title: "RENTABILIDAD DEL PATRIMONIO",
             cards: generateSectionCards('rentabilidad'),
             icon: <svg className="block size-full" fill="none" viewBox="0 0 32 32"><path d={svgPathsDark.p9a70c80} fill={isDarkMode ? "white" : "#404040"} /></svg>
-        },
-        inversiones: {
-            title: "INVERSIONES",
-            cards: generateSectionCards('inversiones'),
-            icon: <svg className="block size-full" fill="none" viewBox="0 0 32 32"><path d="M8 4v6h16V4h-16zm16 8H8v16h16V12zM6 2h20a2 2 0 012 2v24a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2zm6 6h8v2h-8V8zm0 4h8v2h-8v-2zm0 4h8v2h-8v-2z" fill={isDarkMode ? "white" : "#404040"} /></svg>
         }
+        // inversiones: {
+        //     title: "INVERSIONES",
+        //     cards: generateSectionCards('inversiones'),
+        //     icon: <svg className="block size-full" fill="none" viewBox="0 0 32 32"><path d="M8 4v6h16V4h-16zm16 8H8v16h16V12zM6 2h20a2 2 0 012 2v24a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2zm6 6h8v2h-8V8zm0 4h8v2h-8v-2zm0 4h8v2h-8v-2z" fill={isDarkMode ? "white" : "#404040"} /></svg>
+        // }
     }), [generateSectionCards, isDarkMode]);
 
     // Event handlers
@@ -1056,21 +1082,21 @@ export default function App() {
                                                 {sections.rentabilidad.cards}
                                             </CarouselSection>
 
-                                            <CarouselSection
-                                                title="INVERSIONES"
-                                                icon={
-                                                    <div className="relative shrink-0 size-8">
-                                                        {sections.inversiones.icon}
-                                                    </div>
-                                                }
-                                                isExpanded={sectionStates.inversiones}
-                                                onToggleExpansion={() => toggleSection('inversiones')}
-                                                onReorderCards={onReorderHandlers.inversiones}
-                                                onFilterClick={() => handleFilterClick('inversiones')}
-                                                isDarkMode={isDarkMode}
-                                            >
-                                                {sections.inversiones.cards}
-                                            </CarouselSection>
+                                            {/* <CarouselSection
+                                title="INVERSIONES"
+                                icon={
+                                    <div className="relative shrink-0 size-8">
+                                        {sections.inversiones.icon}
+                                    </div>
+                                }
+                                isExpanded={sectionStates.inversiones}
+                                onToggleExpansion={() => toggleSection('inversiones')}
+                                onReorderCards={onReorderHandlers.inversiones}
+                                onFilterClick={() => handleFilterClick('inversiones')}
+                                isDarkMode={isDarkMode}
+                            >
+                                {sections.inversiones.cards}
+                            </CarouselSection> */}
 
                                         </div>
                                     </div>

@@ -87,7 +87,7 @@ const EditableField: React.FC<EditableFieldProps> = ({
         onChange={(e) => setTempValue(e.target.value)}
         onBlur={handleSubmit}
         onKeyDown={handleKeyDown}
-        className={`border rounded-lg h-8 px-3 py-2 text-sm w-16 focus:outline-none focus:ring-2 focus:ring-opacity-50 ${isDarkMode
+        className={`border rounded-lg h-10 px-3 py-2 text-sm w-20 focus:outline-none focus:ring-2 focus:ring-opacity-50 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-outer-spin-button]:m-0 [&[type=number]]:[-moz-appearance:textfield] ${isDarkMode
           ? 'bg-neutral-800 border-[#3ABE76] text-[#3ABE76] focus:ring-[#3ABE76]'
           : 'bg-neutral-50 border-[#1a6e31] text-[#1a6e31] focus:ring-[#1a6e31]'
           }`}
@@ -100,7 +100,7 @@ const EditableField: React.FC<EditableFieldProps> = ({
   return (
     <div
       onClick={() => setIsEditing(true)}
-      className={`border rounded-lg h-8 px-3 py-2 cursor-pointer hover:opacity-80 flex items-center justify-center transition-all min-w-[64px] ${isDarkMode
+      className={`border rounded-lg h-10 px-3 py-2 cursor-pointer hover:opacity-80 flex items-center justify-center transition-all min-w-[80px] ${isDarkMode
         ? 'bg-neutral-800 border-[#3ABE76]'
         : 'bg-neutral-50 border-[#1a6e31] hover:bg-gray-50'
         }`}
@@ -144,8 +144,84 @@ export const Sidebar: React.FC<SidebarProps> = ({
     estacionalidadMensual: false,
     valorizacion: false,
     costosDeVenta: false,
+    gastosDeVenta: false,
     otros: false
   });
+
+  // NEW: State for 2024 established values from database views
+  const [establishedValues2024, setEstablishedValues2024] = useState({
+    crecimientoDeVentas: 0,
+    inversiones: 0,
+    dividendos: 0,
+    creditoNeto: 0,
+    utilidad: 0
+  });
+
+  const [isLoadingEstablishedValues, setIsLoadingEstablishedValues] = useState(true);
+
+  // NEW: Function to fetch 2024 established values from parametros endpoint
+  const fetchEstablishedValues2024 = useCallback(async () => {
+    try {
+      setIsLoadingEstablishedValues(true);
+
+      // Fetch parametros data (same endpoint as globalParameters)
+      const response = await fetch('/api/parametros');
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data && result.data.parametros) {
+          const allParams = result.data.parametros;
+
+          // Initialize 2024 values
+          const newEstablishedValues = {
+            crecimientoDeVentas: 0,
+            inversiones: 0,
+            dividendos: 0,
+            creditoNeto: 0,
+            utilidad: 0
+          };
+
+          // Look for 2024 established values in parametros
+          allParams.forEach((param: any) => {
+            const { prmt_codigo, prmt_valor, prmt_ano } = param;
+
+            // Look for 2024 values for each projection type
+            if (prmt_ano === 2024) {
+              if (prmt_codigo === 'PROY_CRECIMIENTO') {
+                newEstablishedValues.crecimientoDeVentas = prmt_valor;
+              } else if (prmt_codigo === 'PROY_INVERSION') {
+                newEstablishedValues.inversiones = prmt_valor;
+              } else if (prmt_codigo === 'PROY_DIVIDENDOS') {
+                newEstablishedValues.dividendos = prmt_valor;
+              } else if (prmt_codigo === 'PROY_CREDITO_NETO') {
+                newEstablishedValues.creditoNeto = prmt_valor;
+              } else if (prmt_codigo === 'PROY_UTIL') {
+                newEstablishedValues.utilidad = prmt_valor;
+              }
+            }
+          });
+
+          setEstablishedValues2024(newEstablishedValues);
+          console.log('Loaded 2024 established values from parametros:', newEstablishedValues);
+        } else {
+          console.warn('Parametros API returned unsuccessful response for 2024 values:', result);
+        }
+      } else {
+        console.warn(`Parametros API request failed with status ${response.status}: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Failed to fetch 2024 established values from parametros:', error);
+    } finally {
+      setIsLoadingEstablishedValues(false);
+    }
+  }, []);
+
+  // Load 2024 established values on component mount
+  useEffect(() => {
+    if (isOpen) {
+      fetchEstablishedValues2024();
+    }
+  }, [isOpen, fetchEstablishedValues2024]);
 
   // Note: All parameters are now loaded from globalParameters prop (from database)
   // Local parameter state is no longer needed as everything comes from the API
@@ -467,9 +543,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <div className="overflow-x-auto">
                     <div className="min-w-max">
                       {/* Header row with years */}
-                      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `200px 80px repeat(${getProjectionFields.length}, 80px)` }}>
                         <div className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
                           Proyección
+                        </div>
+                        <div className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
+                          2024
                         </div>
                         {getProjectionFields.map(year => (
                           <div key={year} className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
@@ -479,9 +558,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
 
                       {/* Growth projection row */}
-                      <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                      <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px 80px repeat(${getProjectionFields.length}, 80px)` }}>
                         <div className={`text-sm font-medium py-2 ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
                           Crecimiento de Ventas
+                        </div>
+                        {/* 2024 Established Value (Non-editable) */}
+                        <div className="flex justify-center">
+                          {isLoadingEstablishedValues ? (
+                            <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
+                          ) : (
+                            <div className={`border rounded-lg h-10 px-3 py-2 flex items-center justify-center min-w-[80px] ${isDarkMode
+                              ? 'bg-neutral-700 border-neutral-600'
+                              : 'bg-gray-100 border-gray-300'
+                              }`}>
+                              <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                                {Math.round((establishedValues2024.crecimientoDeVentas * 100))}%
+                              </span>
+                            </div>
+                          )}
                         </div>
                         {getProjectionFields.map(year => (
                           <div key={`crecimiento-param-${year}`} className="flex justify-center">
@@ -547,9 +641,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <div className="overflow-x-auto">
                     <div className="min-w-max">
                       {/* Header row with years */}
-                      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `200px 80px repeat(${getProjectionFields.length}, 80px)` }}>
                         <div className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
                           Proyección
+                        </div>
+                        <div className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
+                          2024
                         </div>
                         {getProjectionFields.map(year => (
                           <div key={year} className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
@@ -559,9 +656,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
 
                       {/* Credit projection row */}
-                      <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                      <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px 80px repeat(${getProjectionFields.length}, 80px)` }}>
                         <div className={`text-sm font-medium py-2 ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
                           Crédito Neto
+                        </div>
+                        {/* 2024 Established Value (Non-editable) */}
+                        <div className="flex justify-center">
+                          {isLoadingEstablishedValues ? (
+                            <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
+                          ) : (
+                            <div className={`border rounded-lg h-10 px-3 py-2 flex items-center justify-center min-w-[80px] ${isDarkMode
+                              ? 'bg-neutral-700 border-neutral-600'
+                              : 'bg-gray-100 border-gray-300'
+                              }`}>
+                              <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                                {Math.round(establishedValues2024.creditoNeto)}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         {getProjectionFields.map(year => (
                           <div key={`creditoNeto-param-${year}`} className="flex justify-center">
@@ -627,9 +739,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <div className="overflow-x-auto">
                     <div className="min-w-max">
                       {/* Header row with years */}
-                      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `200px 80px repeat(${getProjectionFields.length}, 80px)` }}>
                         <div className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
                           Proyección
+                        </div>
+                        <div className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
+                          2024
                         </div>
                         {getProjectionFields.map(year => (
                           <div key={year} className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
@@ -639,9 +754,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
 
                       {/* Dividend projection row */}
-                      <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                      <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px 80px repeat(${getProjectionFields.length}, 80px)` }}>
                         <div className={`text-sm font-medium py-2 ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
                           Dividendos
+                        </div>
+                        {/* 2024 Established Value (Non-editable) */}
+                        <div className="flex justify-center">
+                          {isLoadingEstablishedValues ? (
+                            <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
+                          ) : (
+                            <div className={`border rounded-lg h-10 px-3 py-2 flex items-center justify-center min-w-[80px] ${isDarkMode
+                              ? 'bg-neutral-700 border-neutral-600'
+                              : 'bg-gray-100 border-gray-300'
+                              }`}>
+                              <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                                {Math.round(establishedValues2024.dividendos)}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         {getProjectionFields.map(year => (
                           <div key={`dividendos-param-${year}`} className="flex justify-center">
@@ -707,9 +837,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <div className="overflow-x-auto">
                     <div className="min-w-max">
                       {/* Header row with years */}
-                      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `200px 80px repeat(${getProjectionFields.length}, 80px)` }}>
                         <div className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
                           Proyección
+                        </div>
+                        <div className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
+                          2024
                         </div>
                         {getProjectionFields.map(year => (
                           <div key={year} className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
@@ -719,9 +852,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
 
                       {/* Utility projection row */}
-                      <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                      <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px 80px repeat(${getProjectionFields.length}, 80px)` }}>
                         <div className={`text-sm font-medium py-2 ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
                           Utilidad
+                        </div>
+                        {/* 2024 Established Value (Non-editable) - Note: Utilidad uses the same view as "UTILIDAD" card */}
+                        <div className="flex justify-center">
+                          {isLoadingEstablishedValues ? (
+                            <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
+                          ) : (
+                            <div className={`border rounded-lg h-10 px-3 py-2 flex items-center justify-center min-w-[80px] ${isDarkMode
+                              ? 'bg-neutral-700 border-neutral-600'
+                              : 'bg-gray-100 border-gray-300'
+                              }`}>
+                              <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                                {Math.round((establishedValues2024.utilidad || 0) * 100)}%
+                              </span>
+                            </div>
+                          )}
                         </div>
                         {getProjectionFields.map(year => (
                           <div key={`utilidad-param-${year}`} className="flex justify-center">
@@ -787,9 +935,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <div className="overflow-x-auto">
                     <div className="min-w-max">
                       {/* Header row with years */}
-                      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `200px 80px repeat(${getProjectionFields.length}, 80px)` }}>
                         <div className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
                           Proyección
+                        </div>
+                        <div className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
+                          2024
                         </div>
                         {getProjectionFields.map(year => (
                           <div key={year} className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
@@ -799,9 +950,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
 
                       {/* Investment projection row */}
-                      <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                      <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px 80px repeat(${getProjectionFields.length}, 80px)` }}>
                         <div className={`text-sm font-medium py-2 ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
                           Inversiones
+                        </div>
+                        {/* 2024 Established Value (Non-editable) */}
+                        <div className="flex justify-center">
+                          {isLoadingEstablishedValues ? (
+                            <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
+                          ) : (
+                            <div className={`border rounded-lg h-10 px-3 py-2 flex items-center justify-center min-w-[80px] ${isDarkMode
+                              ? 'bg-neutral-700 border-neutral-600'
+                              : 'bg-gray-100 border-gray-300'
+                              }`}>
+                              <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                                {Math.round(establishedValues2024.inversiones)}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         {getProjectionFields.map(year => (
                           <div key={`inversiones-param-${year}`} className="flex justify-center">
@@ -1001,12 +1167,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               {isLoadingGlobalParametros ? (
                                 <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
                               ) : (
-                                <EditableField
-                                  value={globalParameters?.margenesFinancieros?.[code]?.[year] || 0}
-                                  onChange={(value) => handleParameterChange('margenesFinancieros', `${code}_proy${year}`, value)}
-                                  type="percentage"
-                                  isDarkMode={isDarkMode}
-                                />
+                                <div className={`border rounded-lg h-10 px-3 py-2 flex items-center justify-center min-w-[80px] ${isDarkMode
+                                  ? 'bg-neutral-700 border-neutral-600'
+                                  : 'bg-gray-100 border-gray-300'
+                                  }`}>
+                                  <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                                    {Math.round((globalParameters?.margenesFinancieros?.[code]?.[year] || 0) * 100)}%
+                                  </span>
+                                </div>
                               )}
                             </div>
                           ))}
@@ -1078,12 +1246,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               {isLoadingGlobalParametros ? (
                                 <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
                               ) : (
-                                <EditableField
-                                  value={globalParameters?.balanceGeneral?.[code as keyof typeof globalParameters.balanceGeneral]?.[year] || 0}
-                                  onChange={(value) => handleParameterChange('balanceGeneral', `${code}_proy${year}`, value)}
-                                  type="number"
-                                  isDarkMode={isDarkMode}
-                                />
+                                <div className={`border rounded-lg h-10 px-3 py-2 flex items-center justify-center min-w-[80px] ${isDarkMode
+                                  ? 'bg-neutral-700 border-neutral-600'
+                                  : 'bg-gray-100 border-gray-300'
+                                  }`}>
+                                  <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                                    {Math.round(globalParameters?.balanceGeneral?.[code as keyof typeof globalParameters.balanceGeneral]?.[year] || 0)}
+                                  </span>
+                                </div>
                               )}
                             </div>
                           ))}
@@ -1280,12 +1450,95 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               {isLoadingGlobalParametros ? (
                                 <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
                               ) : (
-                                <EditableField
-                                  value={globalParameters?.costosDeVenta?.[code]?.[year] || 0}
-                                  onChange={(value) => handleParameterChange('costosDeVenta', `${code}_proy${year}`, value)}
-                                  type="percentage"
-                                  isDarkMode={isDarkMode}
-                                />
+                                <div className={`border rounded-lg h-10 px-3 py-2 flex items-center justify-center min-w-[80px] ${isDarkMode
+                                  ? 'bg-neutral-700 border-neutral-600'
+                                  : 'bg-gray-100 border-gray-300'
+                                  }`}>
+                                  <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                                    {Math.round((globalParameters?.costosDeVenta?.[code]?.[year] || 0) * 100)}%
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Sección GASTOS DE VENTA */}
+            <div className="space-y-3">
+              <button
+                onClick={() => toggleSection('gastosDeVenta')}
+                className={`w-full text-white rounded-lg p-4 flex items-center justify-between transition-colors ${isDarkMode
+                  ? 'bg-green-700 hover:bg-green-600'
+                  : 'bg-green-900 hover:bg-green-800'
+                  }`}
+              >
+                <span className="font-semibold text-base">GASTOS DE VENTA</span>
+                <div className={`transform transition-transform duration-200 ${sectionStates.gastosDeVenta ? 'rotate-90' : ''}`}>
+                  <svg className="size-5" fill="none" viewBox="0 0 18 18">
+                    <path d={svgPaths.p3fb14600} fill="#FAFAFA" />
+                  </svg>
+                </div>
+              </button>
+
+              {sectionStates.gastosDeVenta && (
+                <div className={`rounded-lg p-4 space-y-4 ${isDarkMode
+                  ? 'bg-neutral-800 border-neutral-700'
+                  : 'bg-white border-[#e0e0e0]'
+                  }`}>
+
+                  <div className="text-center">
+                    <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                      Gastos de venta por año
+                    </span>
+                  </div>
+
+                  {/* Table/Grid format for parameters by year */}
+                  <div className="overflow-x-auto">
+                    <div className="min-w-max">
+                      {/* Header row with years */}
+                      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `200px repeat(${getCostosDeVentaProjectionFields.length}, 80px)` }}>
+                        <div className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
+                          Parámetro
+                        </div>
+                        {getCostosDeVentaProjectionFields.map(year => (
+                          <div key={year} className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
+                            {year}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Parameter rows */}
+                      {[
+                        { code: 'REM', label: 'Remuneraciones' },
+                        { code: 'GRL', label: 'Gastos Generales' },
+                        { code: 'DEP', label: 'Depreciación' },
+                        { code: 'MANT', label: 'Mantenimiento' },
+                        { code: 'HON', label: 'Honorarios' },
+                        { code: 'OTR', label: 'Otros' }
+                      ].map(({ code, label }) => (
+                        <div key={code} className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px repeat(${getCostosDeVentaProjectionFields.length}, 80px)` }}>
+                          <div className={`text-sm font-medium py-2 truncate ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`} title={label}>
+                            {label}:
+                          </div>
+                          {getCostosDeVentaProjectionFields.map(year => (
+                            <div key={year} className="flex items-center justify-center">
+                              {isLoadingGlobalParametros ? (
+                                <div className="w-16 h-6 bg-gray-200 rounded animate-pulse"></div>
+                              ) : (
+                                <div className={`border rounded-lg h-10 px-3 py-2 flex items-center justify-center min-w-[80px] ${isDarkMode
+                                  ? 'bg-neutral-700 border-neutral-600'
+                                  : 'bg-gray-100 border-gray-300'
+                                  }`}>
+                                  <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                                    {Math.round((globalParameters?.gastosDeVenta?.[code]?.[year] || 0) * 100)}%
+                                  </span>
+                                </div>
                               )}
                             </div>
                           ))}
