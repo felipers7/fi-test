@@ -34,6 +34,7 @@ const CARD_TO_BUDGET_VIEW_MAPPING: { [key: string]: string } = {
 
     // Inversiones
     'inversiones': 'vw_inversiones_presupuesto',
+    'crecimiento_ventas': 'vw_crecimiento_de_ventas_presupuesto',
 
     // Flujo de efectivo
     'fuentes_de_fondo': 'vw_fuentes_de_fondo_presupuesto',
@@ -132,7 +133,7 @@ export async function GET(request: Request) {
 
         if (!budgetViewName) {
             console.warn(`No budget view mapping found for formula: ${formulaName}`);
-            
+
             // Return zeros for unmapped formulas
             const years = [];
             const values = [];

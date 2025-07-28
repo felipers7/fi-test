@@ -132,7 +132,8 @@ export default function App() {
         otros: {
             DIAS_DEL_PERIODO: 0,
             UNID_MED: 0,
-            VUC: 10
+            VUC: 10,
+            EV_ABR: 0
         },
         // Yearly parameters
         margenesFinancieros: {
@@ -290,7 +291,7 @@ export default function App() {
                                 valorizacion[prmt_codigo] = prmt_valor;
                             }
                             // Other parameters
-                            else if (['DIAS_DEL_PERIODO', 'UNID_MED', 'VUC'].includes(prmt_codigo)) {
+                            else if (['DIAS_DEL_PERIODO', 'UNID_MED', 'VUC', 'EV_ABR'].includes(prmt_codigo)) {
                                 otros[prmt_codigo] = prmt_valor;
                             }
                         }

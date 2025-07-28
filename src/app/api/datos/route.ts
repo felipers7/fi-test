@@ -34,6 +34,7 @@ const CARD_TO_VIEW_MAPPING: { [key: string]: string } = {
 
     // Inversiones
     'inversiones': 'vw_inversiones',
+    'crecimiento_ventas': 'vw_crecimiento_de_ventas',
 
     // Flujo de efectivo
     'fuentes_de_fondo': 'vw_fuentes_de_fondo',

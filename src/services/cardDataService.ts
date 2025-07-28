@@ -243,6 +243,6 @@ export const SECTION_CARD_TITLES = {
         "ROTACION DE ACTIVOS", "PALANCA FINANCIERA"
     ],
     inversiones: [
-        "INVERSIONES"
+        "INVERSIONES", "CRECIMIENTO VENTAS"
     ]
 }; 

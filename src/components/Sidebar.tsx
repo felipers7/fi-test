@@ -1329,7 +1329,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <div className="space-y-3">
                     {[
                       { code: 'DIAS_DEL_PERIODO', label: 'Días del Período' },
-                      { code: 'UNID_MED', label: 'Unidad de Medida' }
+                      { code: 'UNID_MED', label: 'Unidad de Medida' },
+                      { code: 'EV_ABR', label: 'Estacionalidad Ventas' }
                     ].map(({ code, label }) => (
                       <div key={code} className="flex items-center justify-between">
                         <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
@@ -1339,9 +1340,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
                         ) : (
                           <EditableField
-                            value={globalParameters?.otros?.[code as keyof typeof globalParameters.otros] || 0}
+                            value={globalParameters?.otros?.[code] || 0}
                             onChange={(value) => handleParameterChange('otros', code, value)}
-                            type="number"
+                            type={code === 'EV_ABR' ? 'percentage' : 'number'}
                             isDarkMode={isDarkMode}
                           />
                         )}
