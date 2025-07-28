@@ -1,10 +1,13 @@
 import React from 'react';
 import svgPaths from "../imports/svg-h9t05zbsew";
 
+// FINANCIAL CARD FORMATTING CONFIGURATION
+// Easy to read and debug formatting rules for LLMs and developers
+
 // Set of titles that should be displayed as percentages
 const PERCENTAGE_TITLES = new Set([
   'PAGO DIVIDENDOS',
-  'CAPITAL DE TRABAJO', 
+  'CAPITAL DE TRABAJO',
   'CAJA PERIODO',
   'INVERSIONES',
   'USOS DE FONDO',
@@ -16,6 +19,13 @@ const PERCENTAGE_TITLES = new Set([
   'RENTABILIDAD CAPITAL',
   'CREACION DE VALOR',
   'CRECIMIENTO PATRIMONIO'
+]);
+
+// Set of titles that should display decimal numbers (not rounded)
+// All other cards will be rounded by default
+const DECIMAL_TITLES = new Set([
+  'LIQUIDEZ',
+  'SOLVENCIA'
 ]);
 
 interface FinancialData {
@@ -38,8 +48,9 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
   data,
   globalSelectedYears
 }) => {
-  // Check if this card should display values as percentages
+  // Check formatting rules for this card title
   const isPercentageCard = PERCENTAGE_TITLES.has(title);
+  const isDecimalCard = DECIMAL_TITLES.has(title);
 
   // Filter data based on selected years
   const filteredData = data.dates
@@ -64,9 +75,11 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
 
   const formatNumber = (num: number | string): string => {
     if (typeof num === 'string') return num; // Handle '-', 'cargando', etc.
-    
+
+    // FORMATTING LOGIC - Easy to debug and understand
+
     if (isPercentageCard) {
-      // For percentage cards: multiply by 100 and round to 2 decimal places
+      // PERCENTAGE CARDS: multiply by 100 and show 2 decimal places with % symbol
       const percentageValue = Math.round(num * 100 * 100) / 100; // Round to 2 decimals
       const formattedPercentage = new Intl.NumberFormat('es-ES', {
         minimumFractionDigits: 2,
@@ -74,9 +87,20 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
       }).format(percentageValue);
       return `${formattedPercentage}%`;
     }
-    
-    // For regular cards: format as normal numbers
-    return new Intl.NumberFormat('es-ES').format(num);
+
+    if (isDecimalCard) {
+      // DECIMAL CARDS: show numbers with 2 decimal places (liquidez, solvencia)
+      return new Intl.NumberFormat('es-ES', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(num);
+    }
+
+    // REGULAR CARDS: rounded numbers with no decimals (default behavior)
+    return new Intl.NumberFormat('es-ES', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(Math.round(num));
   };
 
   // Function to format the year display in the selector

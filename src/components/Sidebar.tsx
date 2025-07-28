@@ -1140,9 +1140,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <div className="overflow-x-auto">
                     <div className="min-w-max">
                       {/* Header row with years */}
-                      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `200px 80px repeat(${getProjectionFields.length}, 80px)` }}>
                         <div className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
                           Parámetro
+                        </div>
+                        <div className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
+                          2024
                         </div>
                         {getProjectionFields.map(year => (
                           <div key={year} className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
@@ -1158,9 +1161,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         { code: 'G_A_V', label: 'Gastos Admin y Ventas' },
                         { code: 'IMPTO', label: 'Impuesto' }
                       ].map(({ code, label }) => (
-                        <div key={code} className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                        <div key={code} className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px 80px repeat(${getProjectionFields.length}, 80px)` }}>
                           <div className={`text-sm font-medium py-2 truncate ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`} title={label}>
                             {label}
+                          </div>
+                          {/* 2024 Established Value (Non-editable) */}
+                          <div className="flex justify-center">
+                            {isLoadingGlobalParametros ? (
+                              <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
+                            ) : (
+                              <div className={`border rounded-lg h-10 px-3 py-2 flex items-center justify-center min-w-[80px] ${isDarkMode
+                                ? 'bg-neutral-700 border-neutral-600'
+                                : 'bg-gray-100 border-gray-300'
+                                }`}>
+                                <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                                  {Math.round((globalParameters?.margenesFinancieros?.[code]?.['2024'] || 0) * 100)}%
+                                </span>
+                              </div>
+                            )}
                           </div>
                           {getProjectionFields.map(year => (
                             <div key={`${code}-${year}`} className="flex justify-center">
@@ -1219,9 +1237,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <div className="overflow-x-auto">
                     <div className="min-w-max">
                       {/* Header row with years */}
-                      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `200px 80px repeat(${getProjectionFields.length}, 80px)` }}>
                         <div className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
                           Parámetro
+                        </div>
+                        <div className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
+                          2024
                         </div>
                         {getProjectionFields.map(year => (
                           <div key={year} className={`text-sm font-semibold text-center py-2 ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>
@@ -1237,9 +1258,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         { code: 'EXIST', label: 'Existencias' },
                         { code: 'CXP', label: 'Cuentas por Pagar' }
                       ].map(({ code, label }) => (
-                        <div key={code} className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px repeat(${getProjectionFields.length}, 80px)` }}>
+                        <div key={code} className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px 80px repeat(${getProjectionFields.length}, 80px)` }}>
                           <div className={`text-sm font-medium py-2 truncate ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`} title={label}>
                             {label}
+                          </div>
+                          {/* 2024 Established Value (Non-editable) */}
+                          <div className="flex justify-center">
+                            {isLoadingGlobalParametros ? (
+                              <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
+                            ) : (
+                              <div className={`border rounded-lg h-10 px-3 py-2 flex items-center justify-center min-w-[80px] ${isDarkMode
+                                ? 'bg-neutral-700 border-neutral-600'
+                                : 'bg-gray-100 border-gray-300'
+                                }`}>
+                                <span className={`text-sm font-medium ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                                  {Math.round(globalParameters?.balanceGeneral?.[code as keyof typeof globalParameters.balanceGeneral]?.['2024'] || 0)}
+                                </span>
+                              </div>
+                            )}
                           </div>
                           {getProjectionFields.map(year => (
                             <div key={`${code}-${year}`} className="flex justify-center">
@@ -1515,12 +1551,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                       {/* Parameter rows */}
                       {[
-                        { code: 'REM', label: 'Remuneraciones' },
-                        { code: 'GRL', label: 'Gastos Generales' },
-                        { code: 'DEP', label: 'Depreciación' },
-                        { code: 'MANT', label: 'Mantenimiento' },
-                        { code: 'HON', label: 'Honorarios' },
-                        { code: 'OTR', label: 'Otros' }
+                        { code: 'REM_GV', label: 'Remuneraciones' },
+                        { code: 'GRL_GV', label: 'Gastos Generales' },
+                        { code: 'DEP_GV', label: 'Depreciación' },
+                        { code: 'MANT_GV', label: 'Mantenimiento' },
+                        { code: 'HON_GV', label: 'Honorarios' },
+                        { code: 'OTR_GV', label: 'Otros' }
                       ].map(({ code, label }) => (
                         <div key={code} className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px repeat(${getCostosDeVentaProjectionFields.length}, 80px)` }}>
                           <div className={`text-sm font-medium py-2 truncate ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`} title={label}>
