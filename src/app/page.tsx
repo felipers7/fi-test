@@ -159,12 +159,12 @@ export default function App() {
             OTR: {} as { [year: string]: number }
         },
         gastosDeVenta: {
-            REM: {} as { [year: string]: number },
-            GRL: {} as { [year: string]: number },
-            DEP: {} as { [year: string]: number },
-            MANT: {} as { [year: string]: number },
-            HON: {} as { [year: string]: number },
-            OTR: {} as { [year: string]: number }
+            REM_GV: {} as { [year: string]: number },
+            GRL_GV: {} as { [year: string]: number },
+            DEP_GV: {} as { [year: string]: number },
+            MANT_GV: {} as { [year: string]: number },
+            HON_GV: {} as { [year: string]: number },
+            OTR_GV: {} as { [year: string]: number }
         }
     });
 
@@ -254,12 +254,12 @@ export default function App() {
                         OTR: {}
                     };
                     const gastosDeVenta: any = {
-                        REM: {},
-                        GRL: {},
-                        DEP: {},
-                        MANT: {},
-                        HON: {},
-                        OTR: {}
+                        REM_GV: {},
+                        GRL_GV: {},
+                        DEP_GV: {},
+                        MANT_GV: {},
+                        HON_GV: {},
+                        OTR_GV: {}
                     };
 
                     // Group parameters by type
@@ -292,7 +292,7 @@ export default function App() {
                             console.log(`Loading costo de venta: ${prmt_codigo} (${prmt_ano}) = ${prmt_valor}`);
                         }
                         // Handle yearly gastos de venta parameters (70000s)
-                        else if (['REM', 'GRL', 'DEP', 'MANT', 'HON', 'OTR'].includes(prmt_codigo) && prmt_ano) {
+                        else if (['REM_GV', 'GRL_GV', 'DEP_GV', 'MANT_GV', 'HON_GV', 'OTR_GV'].includes(prmt_codigo) && prmt_ano) {
                             gastosDeVenta[prmt_codigo][prmt_ano.toString()] = prmt_valor;
                             console.log(`Loading gasto de venta: ${prmt_codigo} (${prmt_ano}) = ${prmt_valor}`);
                         }
