@@ -188,10 +188,24 @@ export const processCardData = (
         }
     });
 
-    // Calculate result only from real values (past/current years)
+    // Calculate result - for percentage cards use latest value, for others sum all values
     const realNumericValues = realValues.filter(v => typeof v === 'number' && v !== -1) as number[];
+
+    // Check if this is a percentage card
+    const PERCENTAGE_TITLES = new Set([
+        'PAGO DIVIDENDOS', 'CAPITAL DE TRABAJO', 'CAJA PERIODO', 'INVERSIONES',
+        'USOS DE FONDO', 'FUENTES DE FONDO', 'FLUJO OPERATIVO', 'CREDITO',
+        'NIVEL DE DEUDA', 'RENTABILIDAD PATRIMONIO', 'RENTABILIDAD CAPITAL',
+        'CREACION DE VALOR', 'CRECIMIENTO PATRIMONIO', 'INTERESES OPERACIONALES 2',
+        'UTILIDAD NETA', 'FLUJO INVERSIONES'
+    ]);
+
+    const isPercentageCard = PERCENTAGE_TITLES.has(title);
+
     const calculatedResult = realNumericValues.length > 0
-        ? realNumericValues.reduce((sum, val) => sum + val, 0)
+        ? (isPercentageCard
+            ? realNumericValues[realNumericValues.length - 1] // Latest value for percentage cards
+            : realNumericValues.reduce((sum, val) => sum + val, 0)) // Sum for other cards
         : (apiData.result !== -1 ? apiData.result : -1);
 
     return {

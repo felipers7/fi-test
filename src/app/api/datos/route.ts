@@ -30,7 +30,7 @@ const CARD_TO_VIEW_MAPPING: { [key: string]: string } = {
     'rentabilidad_patrimonio': 'vw_rentabilidad_patrimonio',
     'rentabilidad_capital': 'vw_rentabilidad_capital',
     'utilidad_neta': 'vw_utilidad_neta',
-    'rotacion_de_activos': 'vw_rotacion_de_activos',
+    'rotacion_de_activos': 'vw_rotacion_activos',
     'palanca_financiera': 'vw_palanca_financiera',
 
     // Inversiones

@@ -82,13 +82,9 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
     // FORMATTING LOGIC - Easy to debug and understand
 
     if (isPercentageCard) {
-      // PERCENTAGE CARDS: multiply by 100 and show 2 decimal places with % symbol
-      const percentageValue = Math.round(num * 100 * 100) / 100; // Round to 2 decimals
-      const formattedPercentage = new Intl.NumberFormat('es-ES', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      }).format(percentageValue);
-      return `${formattedPercentage}%`;
+      // PERCENTAGE CARDS: multiply by 100, truncate to 2 decimals, add % symbol
+      const percentageValue = Math.floor(num * 100 * 100) / 100;
+      return `${percentageValue}%`;
     }
 
     if (isDecimalCard) {
