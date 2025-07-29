@@ -507,6 +507,36 @@ export default function App() {
         }
     });
 
+    // Sync filter categories with current SECTION_CARD_TITLES (fixes issues when cards are moved between sections)
+    useEffect(() => {
+        setSectionFilters(prevFilters => {
+            const newFilters: Record<SectionKey, SectionFilters> = { ...prevFilters };
+            let hasChanges = false;
+
+            // Check each section and ensure selected categories are valid
+            (Object.keys(newFilters) as SectionKey[]).forEach(sectionKey => {
+                const currentTitles = SECTION_CARD_TITLES[sectionKey];
+                const selectedCategories = newFilters[sectionKey].selectedCategories;
+
+                // Remove any selected categories that no longer exist in this section
+                const validSelectedCategories = selectedCategories.filter(cat => currentTitles.includes(cat));
+
+                // Add any new categories that aren't selected yet (keep all categories selected by default)
+                const allValidCategories = [...new Set([...validSelectedCategories, ...currentTitles])];
+
+                if (JSON.stringify(allValidCategories.sort()) !== JSON.stringify(selectedCategories.sort())) {
+                    newFilters[sectionKey] = {
+                        ...newFilters[sectionKey],
+                        selectedCategories: allValidCategories
+                    };
+                    hasChanges = true;
+                }
+            });
+
+            return hasChanges ? newFilters : prevFilters;
+        });
+    }, []); // Run once on mount to fix any inconsistencies
+
     const [filterModal, setFilterModal] = useState<{
         isOpen: boolean;
         section: SectionKey | null;

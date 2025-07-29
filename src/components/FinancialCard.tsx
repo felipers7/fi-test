@@ -19,7 +19,9 @@ const PERCENTAGE_TITLES = new Set([
   'RENTABILIDAD CAPITAL',
   'CREACION DE VALOR',
   'CRECIMIENTO PATRIMONIO',
-  'INTERESES OPERACIONALES 2'
+  'INTERESES OPERACIONALES 2',
+  'UTILIDAD NETA',
+  'FLUJO INVERSIONES'
 ]);
 
 // Set of titles that should display decimal numbers (not rounded)
