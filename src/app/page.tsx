@@ -487,23 +487,23 @@ export default function App() {
     const [sectionFilters, setSectionFilters] = useState<Record<SectionKey, SectionFilters>>({
         crecimiento: {
             selectedYears: ['2024', '2025', '2026', '2027'],
-            selectedCategories: []
+            selectedCategories: SECTION_CARD_TITLES.crecimiento // Initialize with all categories
         },
         riesgo: {
             selectedYears: ['2024', '2025', '2026', '2027'],
-            selectedCategories: []
+            selectedCategories: SECTION_CARD_TITLES.riesgo // Initialize with all categories
         },
         flujo: {
             selectedYears: ['2024', '2025', '2026', '2027'],
-            selectedCategories: []
+            selectedCategories: SECTION_CARD_TITLES.flujo // Initialize with all categories
         },
         rentabilidad: {
             selectedYears: ['2024', '2025', '2026', '2027'],
-            selectedCategories: []
+            selectedCategories: SECTION_CARD_TITLES.rentabilidad // Initialize with all categories
         },
         inversiones: {
             selectedYears: ['2024', '2025', '2026', '2027'],
-            selectedCategories: []
+            selectedCategories: SECTION_CARD_TITLES.inversiones // Initialize with all categories
         }
     });
 
@@ -529,8 +529,9 @@ export default function App() {
         const baseValue = 7506;
         const yearMultiplier = selectedYears.length * 0.15; // 15% adicional por cada año
         const futureYearsBonus = selectedYears.filter(year => parseInt(year) > 2025).length * 0.25; // 25% adicional por años futuros
-
-        return Math.round(baseValue * (1 + yearMultiplier + futureYearsBonus));
+        //valor empresa
+        //return Math.round(baseValue * (1 + yearMultiplier + futureYearsBonus));
+        return 136.223;
     }, []);
 
     // Function to compare arrays
@@ -557,9 +558,9 @@ export default function App() {
         const titles = SECTION_CARD_TITLES[sectionKey];
         const filters = sectionFilters[sectionKey];
 
-        const categoriesToShow = filters.selectedCategories.length === 0
-            ? titles
-            : filters.selectedCategories;
+        // Only show cards for explicitly selected categories
+        // If no categories are selected, show no cards
+        const categoriesToShow = filters.selectedCategories;
 
         return titles
             .map((title, index) => {
@@ -654,6 +655,7 @@ export default function App() {
         setGlobalSelectedYears(years);
 
         // Actualizar también los filtros de todas las secciones para sincronizar
+        // pero preservar las categorías seleccionadas actuales
         setSectionFilters(prev => ({
             crecimiento: { ...prev.crecimiento, selectedYears: years },
             riesgo: { ...prev.riesgo, selectedYears: years },

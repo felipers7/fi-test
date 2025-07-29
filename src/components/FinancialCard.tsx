@@ -18,7 +18,8 @@ const PERCENTAGE_TITLES = new Set([
   'RENTABILIDAD PATRIMONIO',
   'RENTABILIDAD CAPITAL',
   'CREACION DE VALOR',
-  'CRECIMIENTO PATRIMONIO'
+  'CRECIMIENTO PATRIMONIO',
+  'INTERESES OPERACIONALES 2'
 ]);
 
 // Set of titles that should display decimal numbers (not rounded)

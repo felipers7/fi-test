@@ -409,9 +409,9 @@ export class SectionFilterComponent implements OnInit, OnDestroy {
   @Input() availableCategories: string[] = [];
   @Input() selectedYears: string[] = [];
   @Input() selectedCategories: string[] = [];
-  
+
   @Output() onClose = new EventEmitter<void>();
-  @Output() onApplyFilters = new EventEmitter<{years: string[], categories: string[]}>();
+  @Output() onApplyFilters = new EventEmitter<{ years: string[], categories: string[] }>();
 
   localSelectedYears: string[] = [];
   localSelectedCategories: string[] = [];
