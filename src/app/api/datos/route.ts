@@ -616,6 +616,8 @@ export async function GET(request: Request) {
                 const total = values.reduce((sum, value) => sum + value, 0);
 
                 console.log('View-based results by year:', viewData);
+                console.log(`[${formulaName}] Raw values from DB:`, values);
+                console.log(`[${formulaName}] Total (sum):`, total);
                 console.log(`=== API request completed successfully using VIEW ${viewName} ===`);
 
                 return NextResponse.json({

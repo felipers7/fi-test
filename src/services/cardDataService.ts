@@ -202,11 +202,24 @@ export const processCardData = (
 
     const isPercentageCard = PERCENTAGE_TITLES.has(title);
 
+    // DEBUG: Log the values for percentage cards
+    if (isPercentageCard) {
+        console.log(`[${title}] DEBUG processCardData:`);
+        console.log(`  API values:`, apiData.values);
+        console.log(`  API result:`, apiData.result);
+        console.log(`  realValues:`, realValues);
+        console.log(`  realNumericValues:`, realNumericValues);
+    }
+
     const calculatedResult = realNumericValues.length > 0
         ? (isPercentageCard
             ? realNumericValues[realNumericValues.length - 1] // Latest value for percentage cards
             : realNumericValues.reduce((sum, val) => sum + val, 0)) // Sum for other cards
         : (apiData.result !== -1 ? apiData.result : -1);
+
+    if (isPercentageCard) {
+        console.log(`  calculatedResult:`, calculatedResult);
+    }
 
     return {
         id: cardId,

@@ -82,8 +82,8 @@ export const FinancialCard: React.FC<FinancialCardProps> = ({
     // FORMATTING LOGIC - Easy to debug and understand
 
     if (isPercentageCard) {
-      // PERCENTAGE CARDS: multiply by 100, truncate to 2 decimals, add % symbol
-      const percentageValue = Math.floor(num * 100 * 100) / 100;
+      // PERCENTAGE CARDS: multiply by 100, truncate to 2 decimals (handles negatives), add % symbol
+      const percentageValue = Math.trunc(num * 100 * 100) / 100;
       return `${percentageValue}%`;
     }
 
